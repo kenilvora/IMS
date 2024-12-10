@@ -201,7 +201,6 @@ exports.login = async (req, res) => {
 
 exports.getMe = async (req, res) => {
   try {
-    console.log("User : ", req.user);
     const id = req.user.userId;
 
     if (!id) {
@@ -211,19 +210,68 @@ exports.getMe = async (req, res) => {
       });
     }
 
-    const user = await User.findById(id)
-      .select("-password")
-      .populate([
+    const user = await User.findById(id).select("-password");
+
+    if (req.user.role === "Student") {
+      await user.populate([
         {
           path: "profile",
+          populate: [
+            {
+              path: "collegeDetail",
+              select: "name",
+            },
+            {
+              path: "department",
+              select: "name",
+            },
+          ],
         },
         {
           path: "internshipDetails",
+          populate: [
+            {
+              path: "companyDetails",
+              select: "name email",
+            },
+            {
+              path: "tasks",
+              select: "title description deadline status",
+            },
+          ],
         },
         {
           path: "faculty",
+          select: "firstName lastName email",
         },
       ]);
+    } else if (req.user.role === "Supervisor") {
+      user.internshipDetails = undefined;
+      await user.populate({
+        path: "profile",
+        populate: [
+          {
+            path: "collegeDetail",
+            select: "name",
+          },
+          {
+            path: "department",
+            select: "name",
+          },
+        ],
+      });
+    } else {
+      user.internshipDetails = undefined;
+      await user.populate({
+        path: "profile",
+        populate: [
+          {
+            path: "collegeDetail",
+            select: "name",
+          },
+        ],
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -315,3 +363,5 @@ exports.getAllUsers = async (req, res) => {
     });
   }
 };
+
+exports;
