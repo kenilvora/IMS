@@ -48,25 +48,15 @@ const profileSchema = new mongoose.Schema(
     resume: {
       type: String,
     },
-    collegeName: {
-      type: String,
-      trim: true,
-    },
-    collegeEmail: {
-      type: String,
-      trim: true,
-    },
-    collegeContact: {
-      type: String,
-      trim: true,
+    collegeDetail: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "CollegeDetails",
+      required: true,
     },
     department: {
-      type: String,
-      trim: true,
-    },
-    enrollmentNumber: {
-      type: String,
-      trim: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+      required: true,
     },
     yearOfStudy: {
       type: String,
@@ -79,5 +69,23 @@ const profileSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+profileSchema.pre("save", function (next, options) {
+  const userRole = options?.userRole; // Access the user role from options
+
+  if (userRole && userRole !== "Student") {
+    // Exclude these fields for non-student roles
+    this.yearOfStudy = undefined;
+    this.passingYear = undefined;
+    this.resume = undefined;
+    this.projects = undefined;
+  }
+  if (userRole && userRole === "Admin") {
+    this.department = undefined;
+    this.skills = undefined;
+    this.education = undefined;
+  }
+  next();
+});
 
 module.exports = mongoose.model("Profile", profileSchema);

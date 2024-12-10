@@ -2,6 +2,11 @@ const mongoose = require("mongoose");
 
 const internship = new mongoose.Schema(
   {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
     title: {
       type: String,
       required: true,
@@ -23,11 +28,11 @@ const internship = new mongoose.Schema(
     },
     endDate: {
       type: Date,
-      required: true,
     },
     skills: {
       type: [String],
       trim: true,
+      required: true,
     },
     certificate: {
       type: String,

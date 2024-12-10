@@ -21,13 +21,15 @@ const taskSchema = new mongoose.Schema(
       enum: ["Pending", "InProgress", "Completed"],
       default: "Pending",
     },
-    assignedTo: {
+    assignedToStudent: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      required: true,
     },
-    assignedBy: {
+    assignedByCompany: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "CompanyDetails",
+      required: true,
     },
     comments: [
       {
@@ -39,6 +41,7 @@ const taskSchema = new mongoose.Schema(
         commentedBy: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "User",
+          required: true,
         },
         rating: {
           type: Number,

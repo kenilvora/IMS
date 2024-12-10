@@ -39,6 +39,7 @@ exports.isStudent = async (req, res, next) => {
         message: "Unauthorized Access",
       });
     }
+    next();
   } catch (err) {
     console.log(err);
     return res.status(500).json({
@@ -56,6 +57,7 @@ exports.isSupervisor = async (req, res, next) => {
         message: "Unauthorized Access",
       });
     }
+    next();
   } catch (err) {
     console.log(err);
     return res.status(500).json({
@@ -73,6 +75,7 @@ exports.isAdmin = async (req, res, next) => {
         message: "Unauthorized Access",
       });
     }
+    next();
   } catch (err) {
     console.log(err);
     return res.status(500).json({

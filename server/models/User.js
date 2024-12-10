@@ -28,11 +28,16 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    enrollmentNumber: {
+      type: String,
+      trim: true,
+      required: true,
+    },
     image: {
       type: String,
       required: true,
     },
-    additionalInfo: {
+    profile: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Profile",
       required: true,
@@ -44,7 +49,7 @@ const userSchema = new mongoose.Schema(
         ref: "InternshipDetails",
       },
     ],
-    facultyDetails: {
+    faculty: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -56,5 +61,14 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+userSchema.pre("save", function (next) {
+  if (this.role !== "Student") {
+    this.enrollmentNumber = undefined;
+    this.internshipDetails = undefined;
+    this.faculty = undefined;
+  }
+  next();
+});
 
 module.exports = mongoose.model("User", userSchema);
