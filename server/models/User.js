@@ -23,24 +23,35 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    role: {
-      type: String,
-      enum: ["Intern", "Admin", "Supervisor"],
-    },
-    image: {
-      type: String,
-      required: true,
-    },
     contactNumber: {
       type: String,
       required: true,
       trim: true,
+    },
+    image: {
+      type: String,
+      required: true,
     },
     additionalInfo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Profile",
       required: true,
       trim: true,
+    },
+    internshipDetails: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "InternshipDetails",
+      },
+    ],
+    facultyDetails: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    role: {
+      type: String,
+      enum: ["Intern", "Admin", "Supervisor"],
     },
   },
   { timestamps: true }
