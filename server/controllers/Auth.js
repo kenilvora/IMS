@@ -81,8 +81,8 @@ exports.signup = async (req, res) => {
       const profile = new Profile({
         about: null,
         skills: null,
-        experience: null,
-        education: null,
+        experience: [],
+        education: [],
         projects: [],
         social: {
           github: null,
@@ -364,4 +364,91 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-exports;
+exports.updateProfile = async (req, res) => {
+  try {
+    const id = req.user.userId;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Token is missing",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "User does not exist",
+      });
+    }
+
+    let {
+      about = null,
+      skills = null,
+      experience = [],
+      education = [],
+      projects = [],
+      social = {
+        github: null,
+        linkedIn: null,
+      },
+      resume = null,
+      yearOfStudy = null,
+      passingYear = null,
+    } = req.body;
+
+    // Check if at least one meaningful value is provided
+    if (
+      !about &&
+      (!skills || skills.length === 0) &&
+      (!experience || experience.length === 0) &&
+      (!education || education.length === 0) &&
+      (!projects || projects.length === 0) &&
+      !social.github &&
+      !social.linkedIn &&
+      !resume &&
+      !yearOfStudy &&
+      !passingYear
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide at least one field to update",
+      });
+    }
+
+    const profile = await Profile.findById(user.profile);
+
+    const updatedProfile = {
+      about: about ?? profile.about,
+      skills: skills?.length > 0 ? skills : profile.skills,
+      experience: experience?.length > 0 ? experience : profile.experience,
+      education: education?.length > 0 ? education : profile.education,
+      projects: projects?.length > 0 ? projects : profile.projects,
+      social: {
+        github: social.github ?? profile.social.github,
+        linkedIn: social.linkedIn ?? profile.social.linkedIn,
+      },
+      resume: resume ?? profile.resume,
+      yearOfStudy: yearOfStudy ?? profile.yearOfStudy,
+      passingYear: passingYear ?? profile.passingYear,
+    };
+
+    // Update the profile in the database
+    await Profile.findByIdAndUpdate(user.profile, updatedProfile, {
+      new: true,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};

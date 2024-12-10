@@ -9,14 +9,49 @@ const profileSchema = new mongoose.Schema(
     skills: {
       type: [String],
     },
-    experience: {
-      type: String,
-      trim: true,
-    },
-    education: {
-      type: String,
-      trim: true,
-    },
+    experience: [
+      {
+        company: {
+          type: String,
+          trim: true,
+          required: true,
+        },
+        position: {
+          type: String,
+          trim: true,
+          required: true,
+        },
+        duration: {
+          type: String,
+          trim: true,
+          required: true,
+        },
+        description: {
+          type: String,
+          trim: true,
+          required: true,
+        },
+      },
+    ],
+    education: [
+      {
+        institute: {
+          type: String,
+          trim: true,
+          required: true,
+        },
+        degree: {
+          type: String,
+          trim: true,
+          required: true,
+        },
+        year: {
+          type: String,
+          trim: true,
+          required: true,
+        },
+      },
+    ],
     projects: [
       {
         title: {
