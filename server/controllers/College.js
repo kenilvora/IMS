@@ -50,7 +50,9 @@ exports.addDepartment = async (req, res) => {
 
     const department = await Department.findOne({
       name,
-      college: collegeId,
+      college: {
+        $in: [collegeId],
+      },
     });
 
     if (department) {
@@ -60,9 +62,28 @@ exports.addDepartment = async (req, res) => {
       });
     }
 
+    const dptName = await Department.findOne({
+      name,
+    });
+
+    if (dptName) {
+      const dpt = await Department.findByIdAndUpdate(dptName._id, {
+        $push: { college: collegeId },
+      });
+
+      await CollegeDetails.findByIdAndUpdate(collegeId, {
+        $push: { departments: dpt._id },
+      });
+
+      return res.status(200).send({
+        success: true,
+        message: "Department added successfully",
+      });
+    }
+
     const newDepartment = await Department.create({
       name,
-      college: collegeId,
+      college: [collegeId],
     });
 
     await CollegeDetails.findByIdAndUpdate(collegeId, {
@@ -77,6 +98,74 @@ exports.addDepartment = async (req, res) => {
     res.status(400).send({
       success: false,
       error: "Error adding department",
+    });
+  }
+};
+
+exports.getCollegeDetails = async (req, res) => {
+  try {
+    const filter = req.query.filter || "";
+
+    const collegeDetails = await CollegeDetails.find({
+      name: {
+        $regex: filter,
+        $options: "i",
+      },
+    }).populate("departments");
+
+    res.status(200).send({
+      success: true,
+      collegeDetails,
+    });
+  } catch (error) {
+    res.status(400).send({
+      success: false,
+      error: "Error getting college details",
+    });
+  }
+};
+
+exports.getDepartmentDetails = async (req, res) => {
+  try {
+    const college = req.query.college || "";
+    const filter = req.query.filter || "";
+
+    const departments = await Department.aggregate([
+      {
+        $lookup: {
+          from: "collegedetails", // The name of the college collection in MongoDB
+          localField: "college",
+          foreignField: "_id",
+          as: "collegeDetails",
+        },
+      },
+      {
+        $unwind: "$collegeDetails",
+      },
+      {
+        $match: {
+          $and: [
+            { "collegeDetails.name": { $regex: college, $options: "i" } }, // Filter by college name
+            { name: { $regex: filter, $options: "i" } }, // Filter by department name
+          ],
+        },
+      },
+      {
+        $project: {
+          name: 1, // Department name
+          college: "$collegeDetails.name", // Include college name in the result
+        },
+      },
+    ]);
+
+    res.status(200).send({
+      success: true,
+      departments,
+    });
+  } catch (error) {
+    res.status(400).send({
+      success: false,
+      error: "Error getting department details",
     });
   }
 };

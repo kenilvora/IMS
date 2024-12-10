@@ -3,6 +3,7 @@ const Profile = require("../models/Profile");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const dns = require("dns");
+const path = require("path");
 require("dotenv").config();
 
 exports.signup = async (req, res) => {
@@ -64,7 +65,9 @@ exports.signup = async (req, res) => {
         });
       }
 
-      const user = await User.findOne({ email: email });
+      const user = await User.findOne({
+        $or: [{ email: email }, { enrollmentNumber: enrollmentNumber }],
+      });
 
       if (user) {
         return res.status(400).json({
@@ -245,6 +248,64 @@ exports.logout = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Logged out successfully",
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    const filter = req.query.filter || "";
+
+    const users = await User.find({
+      $or: [
+        { firstName: { $regex: filter, $options: "i" } },
+        { lastName: { $regex: filter, $options: "i" } },
+        { email: { $regex: filter, $options: "i" } },
+        { enrollmentNumber: { $regex: filter, $options: "i" } },
+      ],
+      role: "Student",
+    })
+      .select("-password")
+      .populate({
+        path: "profile",
+        populate: [
+          {
+            path: "collegeDetail",
+            select: "name",
+          },
+          {
+            path: "department",
+            select: "name",
+          },
+        ],
+      })
+      .populate({
+        path: "internshipDetails",
+        populate: [
+          {
+            path: "companyDetails",
+            select: "name email",
+          },
+          {
+            path: "tasks",
+            select: "title description deadline status",
+          },
+        ],
+      })
+      .populate({
+        path: "faculty",
+        select: "firstName lastName email",
+      });
+
+    return res.status(200).json({
+      success: true,
+      users,
     });
   } catch (err) {
     console.log(err);
