@@ -2,6 +2,33 @@ const InternshipDetails = require("../models/InternshipDetails");
 const User = require("../models/User");
 const Task = require("../models/Task");
 const CompanyDetails = require("../models/CompanyDetails");
+const cron = require("node-cron");
+const { uploadFileToCloudinary } = require("../utils/uploadFileToCloudinary");
+require("dotenv").config();
+
+cron.schedule("0 0 * * *", async () => {
+  console.log("Updating progress for internships...");
+  try {
+    const internships = await InternshipDetails.find({ status: "OnGoing" });
+    internships.forEach(async (internship) => {
+      if (internship.startDate && internship.endDate) {
+        const totalDuration = internship.endDate - internship.startDate;
+        const elapsedTime = Math.min(
+          Date.now() - internship.startDate,
+          totalDuration
+        );
+        internship.progress = Math.max(
+          0,
+          Math.min((elapsedTime / totalDuration) * 100, 100)
+        );
+        await internship.save();
+      }
+    });
+    console.log("Progress updated successfully!");
+  } catch (err) {
+    console.error("Error updating progress:", err);
+  }
+});
 
 exports.addInternship = async (req, res) => {
   try {
@@ -62,7 +89,8 @@ exports.addInternship = async (req, res) => {
         $push: {
           internshipDetails: internShip._id,
         },
-      }
+      },
+      { new: true }
     );
 
     return res.status(201).json({
@@ -121,12 +149,354 @@ exports.addTask = async (req, res) => {
         $push: {
           tasks: task._id,
         },
-      }
+      },
+      { new: true }
     );
 
     return res.status(201).json({
       success: true,
       message: "Task Added successfully",
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.getTask = async (req, res) => {
+  try {
+    const internShipId = req.params.internShipId;
+    const taskId = req.params.taskId;
+    const id = req.user.userId;
+
+    const internShip = await InternshipDetails.findById(internShipId);
+
+    if (!internShip || internShip.user.toString() !== id) {
+      return res.status(404).json({
+        success: false,
+        message: "No OnGoing Internship found",
+      });
+    }
+
+    const task = await Task.findById(taskId)
+      .populate({
+        path: "assignedToStudent",
+        select: "firstName lastName email contactNumber enrollmentNumber",
+      })
+      .populate({
+        path: "assignedByCompany",
+        select: "name email contactNumber",
+      });
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      task,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.getTasks = async (req, res) => {
+  try {
+    const internShipId = req.params.id;
+    const id = req.user.userId;
+
+    const internShip = await InternshipDetails.findById(internShipId);
+
+    if (!internShip || internShip.user.toString() !== id) {
+      return res.status(404).json({
+        success: false,
+        message: "No OnGoing Internship found",
+      });
+    }
+
+    const tasks = await Task.find({
+      assignedToStudent: id,
+      assignedByCompany: internShip.companyDetails,
+    })
+      .populate({
+        path: "assignedToStudent",
+        select: "firstName lastName email contactNumber enrollmentNumber",
+      })
+      .populate({
+        path: "assignedByCompany",
+        select: "name email contactNumber",
+      });
+
+    return res.status(200).json({
+      success: true,
+      tasks,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.getInternship = async (req, res) => {
+  try {
+    const internShipId = req.params.id;
+    const id = req.user.userId;
+
+    const internShip = await InternshipDetails.findById(internShipId)
+      .populate({
+        path: "companyDetails",
+        select: "name email",
+      })
+      .populate({
+        path: "tasks",
+        populate: {
+          path: "assignedToStudent",
+          select: "firstName lastName email enrollmentNumber",
+        },
+      });
+
+    if (!internShip || internShip.user.toString() !== id) {
+      return res.status(404).json({
+        success: false,
+        message: "No OnGoing Internship found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      internShip,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.getAllInternshipsOfMe = async (req, res) => {
+  try {
+    const id = req.user.userId;
+
+    const internShips = await InternshipDetails.find({
+      user: id,
+    })
+      .populate({
+        path: "companyDetails",
+        select: "name email",
+      })
+      .populate({
+        path: "tasks",
+        populate: {
+          path: "assignedToStudent",
+          select: "firstName lastName email enrollmentNumber",
+        },
+      });
+
+    return res.status(200).json({
+      success: true,
+      internShips,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.getAllInternships = async (req, res) => {
+  try {
+    const internShips = await InternshipDetails.find()
+      .populate({
+        path: "companyDetails",
+        select: "name email contactNumber address",
+      })
+      .populate({
+        path: "tasks",
+        populate: {
+          path: "assignedToStudent",
+          select: "firstName lastName email enrollmentNumber",
+        },
+      });
+
+    return res.status(200).json({
+      success: true,
+      internShips,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.updateInternship = async (req, res) => {
+  try {
+    const internShipId = req.params.id;
+    const id = req.user.userId;
+
+    const internShip = await InternshipDetails.findById(internShipId);
+
+    if (!internShip || internShip.user.toString() !== id) {
+      return res.status(404).json({
+        success: false,
+        message: "No OnGoing Internship found",
+      });
+    }
+
+    const {
+      title = internShip.title,
+      description = internShip.description,
+      endDate = internShip.endDate,
+      skills = internShip.skills,
+      status = internShip.status,
+    } = req.body;
+
+    if (endDate && new Date(endDate) < new Date(internShip.startDate)) {
+      return res.status(400).json({
+        success: false,
+        message: "End Date should be greater than Start Date",
+      });
+    }
+
+    let certificate = req.files ? req.files.certificate : null;
+    let finalReport = req.files ? req.files.finalReport : null;
+
+    if (certificate) {
+      certificate = await uploadFileToCloudinary(
+        certificate,
+        process.env.FOLDER_NAME
+      );
+    }
+
+    if (finalReport) {
+      finalReport = await uploadFileToCloudinary(
+        finalReport,
+        process.env.FOLDER_NAME
+      );
+    }
+
+    let progress;
+
+    if (endDate) {
+      const totalDuration = new Date(endDate) - internShip.startDate;
+      const elapsedTime = Math.min(
+        Date.now() - internShip.startDate,
+        totalDuration
+      );
+      progress = Math.max(
+        0,
+        Math.min((elapsedTime / totalDuration) * 100, 100)
+      );
+    }
+
+    await InternshipDetails.findByIdAndUpdate(
+      {
+        _id: internShipId,
+      },
+      {
+        title,
+        description,
+        endDate,
+        skills,
+        certificate: certificate
+          ? certificate.secure_url
+          : internShip.certificate,
+        finalReport: finalReport
+          ? finalReport.secure_url
+          : internShip.finalReport,
+        progress: progress || internShip.progress,
+        status,
+      },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Internship updated successfully",
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.updateTask = async (req, res) => {
+  try {
+    const internShipId = req.params.internShipId;
+    const taskId = req.params.taskId;
+    const id = req.user.userId;
+
+    const internShip = await InternshipDetails.findById(internShipId);
+
+    if (!internShip || internShip.user.toString() !== id) {
+      return res.status(404).json({
+        success: false,
+        message: "No OnGoing Internship found",
+      });
+    }
+
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found",
+      });
+    }
+
+    const {
+      title = task.title,
+      description = task.description,
+      deadline = task.deadline,
+      status = task.status,
+    } = req.body;
+
+    if (deadline && new Date(deadline) < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "Deadline should be greater than current date",
+      });
+    }
+
+    await Task.findByIdAndUpdate(
+      {
+        _id: taskId,
+      },
+      {
+        title,
+        description,
+        deadline,
+        status,
+      },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Task updated successfully",
     });
   } catch (err) {
     console.log(err);

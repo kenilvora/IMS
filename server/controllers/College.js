@@ -67,13 +67,21 @@ exports.addDepartment = async (req, res) => {
     });
 
     if (dptName) {
-      const dpt = await Department.findByIdAndUpdate(dptName._id, {
-        $push: { college: collegeId },
-      });
+      const dpt = await Department.findByIdAndUpdate(
+        dptName._id,
+        {
+          $push: { college: collegeId },
+        },
+        { new: true }
+      );
 
-      await CollegeDetails.findByIdAndUpdate(collegeId, {
-        $push: { departments: dpt._id },
-      });
+      await CollegeDetails.findByIdAndUpdate(
+        collegeId,
+        {
+          $push: { departments: dpt._id },
+        },
+        { new: true }
+      );
 
       return res.status(200).send({
         success: true,
@@ -86,9 +94,13 @@ exports.addDepartment = async (req, res) => {
       college: [collegeId],
     });
 
-    await CollegeDetails.findByIdAndUpdate(collegeId, {
-      $push: { departments: newDepartment._id },
-    });
+    await CollegeDetails.findByIdAndUpdate(
+      collegeId,
+      {
+        $push: { departments: newDepartment._id },
+      },
+      { new: true }
+    );
 
     res.status(200).send({
       success: true,
