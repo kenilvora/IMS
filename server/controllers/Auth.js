@@ -5,6 +5,9 @@ const jwt = require("jsonwebtoken");
 const dns = require("dns");
 const otpGenerator = require("otp-generator");
 const Otp = require("../models/Otp");
+const { uploadFileToCloudinary } = require("../utils/uploadFileToCloudinary");
+const { mailSender } = require("../utils/mailSender");
+const { passwordUpdate } = require("../mail/passwordUpdate");
 require("dotenv").config();
 
 exports.signup = async (req, res) => {
@@ -426,6 +429,8 @@ exports.updateProfile = async (req, res) => {
       passingYear = null,
     } = req.body;
 
+    let resume = req.file ? req.file.resume : null;
+
     // Check if at least one meaningful value is provided
     if (
       !about &&
@@ -436,12 +441,17 @@ exports.updateProfile = async (req, res) => {
       !social.github &&
       !social.linkedIn &&
       !yearOfStudy &&
-      !passingYear
+      !passingYear &&
+      !resume
     ) {
       return res.status(400).json({
         success: false,
         message: "Please provide at least one field to update",
       });
+    }
+
+    if (resume) {
+      resume = await uploadFileToCloudinary(resume, process.env.FOLDER_NAME);
     }
 
     const profile = await Profile.findById(user.profile);
@@ -557,6 +567,86 @@ exports.sendOtp = async (req, res) => {
         success: true,
         message: "OTP sent successfully",
       });
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.changePassword = async (req, res) => {
+  try {
+    const id = req.user.userId;
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Token is missing",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "User does not exist",
+      });
+    }
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required",
+      });
+    }
+
+    if (!(await bcrypt.compare(oldPassword, user.password))) {
+      return res.status(400).json({
+        success: false,
+        message: "Old password is incorrect",
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Passwords do not match",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await User.findByIdAndUpdate(
+      id,
+      {
+        password: hashedPassword,
+      },
+      { new: true }
+    );
+
+    try {
+      const name = `${user.firstName} ${user.lastName}`;
+      await mailSender(
+        user.email,
+        "Password Updated Successfully",
+        passwordUpdate(user.email, name)
+      );
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Error in sending email",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Password Updated successfully",
     });
   } catch (err) {
     console.log(err);

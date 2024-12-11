@@ -41,6 +41,8 @@ exports.addInternship = async (req, res) => {
       companyAddress,
       startDate,
       skills,
+      status = "OnGoing",
+      endDate,
     } = req.body;
 
     const id = req.user.userId;
@@ -53,7 +55,8 @@ exports.addInternship = async (req, res) => {
       !companyContact ||
       !companyAddress ||
       !startDate ||
-      !skills
+      !skills ||
+      !endDate
     ) {
       return res.status(400).json({
         success: false,
@@ -72,6 +75,13 @@ exports.addInternship = async (req, res) => {
       });
     }
 
+    if (new Date(endDate) < new Date(startDate)) {
+      return res.status(400).json({
+        success: false,
+        message: "End Date should be greater than Start Date",
+      });
+    }
+
     const internShip = await InternshipDetails.create({
       user: id,
       title,
@@ -79,6 +89,8 @@ exports.addInternship = async (req, res) => {
       companyDetails: company._id,
       startDate,
       skills,
+      endDate,
+      status,
     });
 
     await User.findByIdAndUpdate(
@@ -108,7 +120,7 @@ exports.addInternship = async (req, res) => {
 
 exports.addTask = async (req, res) => {
   try {
-    const { title, description, deadline } = req.body;
+    const { title, description, deadline, status = "InProgress" } = req.body;
     const internShipId = req.params.id;
 
     const id = req.user.userId;
@@ -137,6 +149,7 @@ exports.addTask = async (req, res) => {
       title,
       description,
       deadline,
+      status,
       assignedToStudent: id,
       assignedByCompany: internShip.companyDetails,
     });
