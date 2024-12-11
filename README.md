@@ -1,6 +1,6 @@
-# Internship Management System
+# Internship Hub
 
-The Internship Management System is a web-based platform designed to streamline the process of managing internships for organizations and educational institutions. The platform provides role-based access with distinct functionalities for interns, supervisors, and admins, enhancing the internship experience for all parties involved.
+The Internship Hub is a web-based platform designed to streamline the process of managing internships for organizations and educational institutions. The platform provides role-based access with distinct functionalities for interns, supervisors, and admins, enhancing the internship experience for all parties involved.
 
 ## Features
 
