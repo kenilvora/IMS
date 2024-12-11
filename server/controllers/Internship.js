@@ -506,3 +506,65 @@ exports.updateTask = async (req, res) => {
     });
   }
 };
+
+exports.commentOnTask = async (req, res) => {
+  try {
+    const internShipId = req.params.internShipId;
+    const taskId = req.params.taskId;
+    const id = req.user.userId;
+
+    const internShip = await InternshipDetails.findById(internShipId);
+
+    if (!internShip) {
+      return res.status(404).json({
+        success: false,
+        message: "No Internship found",
+      });
+    }
+
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found",
+      });
+    }
+
+    const { description, rating } = req.body;
+
+    if (!description || !rating) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required",
+      });
+    }
+
+    await Task.findByIdAndUpdate(
+      {
+        _id: taskId,
+      },
+      {
+        $push: {
+          comments: {
+            description,
+            commentedBy: id,
+            rating,
+          },
+        },
+      },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Comment added successfully",
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};

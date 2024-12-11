@@ -1,5 +1,10 @@
 const express = require("express");
-const { auth, isStudent, isAdmin } = require("../middlewares/auth");
+const {
+  auth,
+  isStudent,
+  isAdmin,
+  isSupervisor,
+} = require("../middlewares/auth");
 const {
   addInternship,
   addTask,
@@ -10,6 +15,7 @@ const {
   getAllInternships,
   updateInternship,
   updateTask,
+  commentOnTask,
 } = require("../controllers/Internship");
 const router = express.Router();
 
@@ -39,5 +45,13 @@ router.put("/:id/updateInternship", auth, isStudent, updateInternship);
 
 // Update Task Route by Internship Id and Task Id
 router.put("/:internShipId/updateTask/:taskId", auth, isStudent, updateTask);
+
+// Comment Route on Task by Internship Id and Task Id
+router.post(
+  "/:internShipId/commentOnTask/:taskId",
+  auth,
+  isSupervisor,
+  commentOnTask
+);
 
 module.exports = router;
