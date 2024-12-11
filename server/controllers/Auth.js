@@ -3,7 +3,8 @@ const Profile = require("../models/Profile");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const dns = require("dns");
-const path = require("path");
+const otpGenerator = require("otp-generator");
+const Otp = require("../models/Otp");
 require("dotenv").config();
 
 exports.signup = async (req, res) => {
@@ -19,6 +20,7 @@ exports.signup = async (req, res) => {
       collegeId,
       departmentId,
       role,
+      otp,
     } = req.body;
 
     if (
@@ -31,7 +33,8 @@ exports.signup = async (req, res) => {
       (role === "Student" && !facultyId) ||
       !collegeId ||
       !departmentId ||
-      !role
+      !role ||
+      !otp
     ) {
       return res.status(400).json({
         success: false,
@@ -73,6 +76,31 @@ exports.signup = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: "User already exists",
+        });
+      }
+
+      const recentOtp = Otp.findOne({
+        email: email,
+      });
+
+      if (!recentOtp) {
+        return res.status(400).json({
+          success: false,
+          message: "OTP not found",
+        });
+      }
+
+      if (recentOtp.expires_at <= Date.now()) {
+        return res.status(400).json({
+          success: false,
+          message: "OTP has been expired, Please request a new OTP",
+        });
+      }
+
+      if (recentOtp.otp !== otp) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid OTP",
         });
       }
 
@@ -394,7 +422,6 @@ exports.updateProfile = async (req, res) => {
         github: null,
         linkedIn: null,
       },
-      resume = null,
       yearOfStudy = null,
       passingYear = null,
     } = req.body;
@@ -408,7 +435,6 @@ exports.updateProfile = async (req, res) => {
       (!projects || projects.length === 0) &&
       !social.github &&
       !social.linkedIn &&
-      !resume &&
       !yearOfStudy &&
       !passingYear
     ) {
@@ -443,6 +469,94 @@ exports.updateProfile = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Profile updated successfully",
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.sendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email",
+      });
+    }
+
+    const domain = email.split("@")[1];
+
+    dns.resolveMx(domain, async (err) => {
+      if (err) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid email domain",
+        });
+      }
+
+      const user = await User.findOne({ email: email });
+
+      if (user) {
+        return res.status(400).json({
+          success: false,
+          message: "User is already registered",
+        });
+      }
+
+      let otp = otpGenerator.generate(6, {
+        digits: true,
+        upperCaseAlphabets: false,
+        lowerCaseAlphabets: false,
+        specialChars: false,
+      });
+
+      let result = await Otp.findOne({
+        otp: otp,
+      });
+
+      while (result) {
+        otp = otpGenerator.generate(6, {
+          digits: true,
+          upperCaseAlphabets: false,
+          lowerCaseAlphabets: false,
+          specialChars: false,
+        });
+
+        result = await Otp.findOne({
+          otp: otp,
+        });
+      }
+
+      const emailExist = await Otp.findOne({ email: email });
+
+      if (emailExist) {
+        await Otp.findOneAndDelete({ email: email });
+      }
+
+      await Otp.create({
+        otp: otp,
+        email: email,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "OTP sent successfully",
+      });
     });
   } catch (err) {
     console.log(err);

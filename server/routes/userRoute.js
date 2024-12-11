@@ -6,12 +6,16 @@ const {
   logout,
   getAllUsers,
   updateProfile,
+  sendOtp,
 } = require("../controllers/Auth");
 const { auth } = require("../middlewares/auth");
 const router = express.Router();
 
 // Signup Route
 router.post("/signup", signup);
+
+// Send OTP Route
+router.post("/sendOTP", sendOtp);
 
 // Login Route
 router.post("/login", login);
