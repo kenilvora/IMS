@@ -8,6 +8,8 @@ const Otp = require("../models/Otp");
 const { uploadFileToCloudinary } = require("../utils/uploadFileToCloudinary");
 const { mailSender } = require("../utils/mailSender");
 const { passwordUpdate } = require("../mail/passwordUpdate");
+const CollegeDetails = require("../models/CollegeDetails");
+const Department = require("../models/Department");
 require("dotenv").config();
 
 exports.signup = async (req, res) => {
@@ -107,6 +109,39 @@ exports.signup = async (req, res) => {
         });
       }
 
+      let facultyDetails = null;
+
+      if (role === "Student") {
+        facultyDetails = await User.findById(facultyId);
+
+        if (!facultyDetails || facultyDetails.role !== "Supervisor") {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid faculty details",
+          });
+        }
+      }
+
+      const collegeDetails = await CollegeDetails.findById(collegeId);
+
+      if (!collegeDetails) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid college details",
+        });
+      }
+
+      if (role !== "Admin") {
+        const departmentDetails = await Department.findById(departmentId);
+
+        if (!departmentDetails) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid department details",
+          });
+        }
+      }
+
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const profile = new Profile({
@@ -128,7 +163,7 @@ exports.signup = async (req, res) => {
 
       await profile.save({ userRole: role });
 
-      await User.create({
+      const newUser = await User.create({
         firstName,
         lastName,
         email,
@@ -140,6 +175,12 @@ exports.signup = async (req, res) => {
         faculty: facultyId,
         role,
       });
+
+      if (role === "Student") {
+        facultyDetails.internStudents.push(newUser._id);
+
+        await facultyDetails.save();
+      }
 
       return res.status(201).json({
         success: true,

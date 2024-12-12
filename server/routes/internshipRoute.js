@@ -16,6 +16,9 @@ const {
   updateInternship,
   updateTask,
   commentOnTask,
+  getInternshipByStatus,
+  getInternshipByStatusForFaculty,
+  getAllInternshipsByStatus,
 } = require("../controllers/Internship");
 const router = express.Router();
 
@@ -52,6 +55,25 @@ router.post(
   auth,
   isSupervisor,
   commentOnTask
+);
+
+// Get Internship Route by Status for Intern
+router.get("/getByStatus/:status", auth, isStudent, getInternshipByStatus);
+
+// Get InternShip by Status for Supervisor
+router.get(
+  "/getInternshipByStatus/:status",
+  auth,
+  isSupervisor,
+  getInternshipByStatusForFaculty
+);
+
+// Get All Internships by Status
+router.get(
+  "/getAllInternshipByStatus/:status",
+  auth,
+  isAdmin,
+  getAllInternshipsByStatus
 );
 
 module.exports = router;

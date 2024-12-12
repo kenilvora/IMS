@@ -581,3 +581,151 @@ exports.commentOnTask = async (req, res) => {
     });
   }
 };
+
+exports.getInternshipByStatus = async (req, res) => {
+  try {
+    const status = req.query.status;
+    const id = req.user.userId;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "User Id is required",
+      });
+    }
+
+    if (status !== "OnGoing" && status !== "Completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status",
+      });
+    }
+
+    const internShips = await InternshipDetails.find({
+      user: id,
+      status,
+    })
+      .populate({
+        path: "companyDetails",
+        select: "name email contactNumber address",
+      })
+      .populate({
+        path: "tasks",
+        populate: {
+          path: "assignedToStudent",
+          select: "firstName lastName email enrollmentNumber",
+        },
+      });
+
+    return res.status(200).json({
+      success: true,
+      internShips,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.getInternshipByStatusForFaculty = async (req, res) => {
+  try {
+    const status = req.query.status;
+    const id = req.query.facultyId;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Faculty Id is required",
+      });
+    }
+
+    if (status !== "OnGoing" && status !== "Completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status",
+      });
+    }
+
+    const faculty = await User.findById(id);
+
+    if (!faculty || faculty.role !== "Supervisor") {
+      return res.status(404).json({
+        success: false,
+        message: "Faculty not found",
+      });
+    }
+
+    let internShips = [];
+
+    faculty.internStudents.forEach(async (student) => {
+      const internShipsOfStudent = await InternshipDetails.find({
+        user: student,
+        status,
+      })
+        .populate({
+          path: "companyDetails",
+          select: "name email contactNumber address",
+        })
+        .populate({
+          path: "tasks",
+          populate: {
+            path: "assignedToStudent",
+            select: "firstName lastName email enrollmentNumber",
+          },
+        });
+
+      internShips.push(...internShipsOfStudent);
+    });
+
+    return res.status(200).json({
+      success: true,
+      internShips,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.getAllInternshipsByStatus = async (req, res) => {
+  try {
+    const status = req.query.status;
+
+    if (status !== "OnGoing" && status !== "Completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status",
+      });
+    }
+
+    const internShips = await InternshipDetails.find({ status })
+      .populate({
+        path: "companyDetails",
+        select: "name email contactNumber address",
+      })
+      .populate({
+        path: "tasks",
+        populate: {
+          path: "assignedToStudent",
+          select: "firstName lastName email enrollmentNumber",
+        },
+      });
+
+    return res.status(200).json({
+      success: true,
+      internShips,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};

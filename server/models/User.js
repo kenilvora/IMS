@@ -50,6 +50,12 @@ const userSchema = new mongoose.Schema(
         ref: "InternshipDetails",
       },
     ],
+    internStudents: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     faculty: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -74,6 +80,9 @@ userSchema.pre("save", function (next) {
     this.enrollmentNumber = undefined;
     this.internshipDetails = undefined;
     this.faculty = undefined;
+  }
+  if (this.role !== "Supervisor") {
+    this.internStudents = undefined;
   }
   next();
 });
