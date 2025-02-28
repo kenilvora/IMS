@@ -1,4 +1,4 @@
-exports.passwordUpdate = (email, name) => {
+export const passwordUpdate = (email, name) => {
   return `<!DOCTYPE html>
       <html>
       

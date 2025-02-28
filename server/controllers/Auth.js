@@ -1,18 +1,20 @@
-const User = require("../models/User");
-const Profile = require("../models/Profile");
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-const dns = require("dns");
-const otpGenerator = require("otp-generator");
-const Otp = require("../models/Otp");
-const { uploadFileToCloudinary } = require("../utils/uploadFileToCloudinary");
-const { mailSender } = require("../utils/mailSender");
-const { passwordUpdate } = require("../mail/passwordUpdate");
-const CollegeDetails = require("../models/CollegeDetails");
-const Department = require("../models/Department");
-require("dotenv").config();
+import User from "../models/User.js";
+import Profile from "../models/Profile.js";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import dns from "dns";
+import otpGenerator from "otp-generator";
+import Otp from "../models/Otp.js";
+import { uploadFileToCloudinary } from "../utils/uploadFileToCloudinary.js";
+import { mailSender } from "../utils/mailSender.js";
+import { passwordUpdate } from "../mail/passwordUpdate.js";
+import CollegeDetails from "../models/CollegeDetails.js";
+import Department from "../models/Department.js";
+import dotenv from "dotenv";
 
-exports.signup = async (req, res) => {
+dotenv.config();
+
+export const signup = async (req, res) => {
   try {
     const {
       firstName,
@@ -196,7 +198,7 @@ exports.signup = async (req, res) => {
   }
 };
 
-exports.login = async (req, res) => {
+export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -271,7 +273,7 @@ exports.login = async (req, res) => {
   }
 };
 
-exports.getMe = async (req, res) => {
+export const getMe = async (req, res) => {
   try {
     const id = req.user.userId;
 
@@ -358,7 +360,7 @@ exports.getMe = async (req, res) => {
   }
 };
 
-exports.logout = async (req, res) => {
+export const logout = async (req, res) => {
   try {
     res.clearCookie("token", {
       secure: true,
@@ -378,7 +380,7 @@ exports.logout = async (req, res) => {
   }
 };
 
-exports.getAllUsers = async (req, res) => {
+export const getAllUsers = async (req, res) => {
   try {
     const filter = req.query.filter || "";
 
@@ -436,7 +438,7 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-exports.updateProfile = async (req, res) => {
+export const updateProfile = async (req, res) => {
   try {
     const id = req.user.userId;
 
@@ -530,7 +532,7 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
-exports.sendOtp = async (req, res) => {
+export const sendOtp = async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -618,7 +620,7 @@ exports.sendOtp = async (req, res) => {
   }
 };
 
-exports.changePassword = async (req, res) => {
+export const changePassword = async (req, res) => {
   try {
     const id = req.user.userId;
     const { oldPassword, newPassword, confirmPassword } = req.body;

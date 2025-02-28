@@ -1,6 +1,6 @@
-const mongoose = require("mongoose");
-const otpTemplate = require("../mail/otpTemplate");
-const { mailSender } = require("../utils/mailSender");
+import mongoose from "mongoose";
+import { otpTemplate } from "../mail/otpTemplate.js";
+import { mailSender } from "../utils/mailSender.js";
 
 const otpSchema = new mongoose.Schema({
   otp: {
@@ -42,4 +42,4 @@ otpSchema.pre("save", async function (next) {
   next();
 });
 
-module.exports = mongoose.model("Otp", otpSchema);
+export default mongoose.model("Otp", otpSchema);

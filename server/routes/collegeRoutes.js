@@ -1,11 +1,12 @@
-const express = require("express");
-const {
+import express from "express";
+import {
   addCollegeDetails,
   addDepartment,
   getCollegeDetails,
   getDepartmentDetails,
-} = require("../controllers/College");
-const { auth, isAdmin } = require("../middlewares/auth");
+} from "../controllers/College.js";
+import { auth, isAdmin } from "../middlewares/auth.js";
+
 const router = express.Router();
 
 // Add College Route
@@ -20,4 +21,4 @@ router.get("/getCollegeDetails", getCollegeDetails);
 // Get Department Details Route
 router.get("/getDepartmentDetails", getDepartmentDetails);
 
-module.exports = router;
+export default router;

@@ -1,7 +1,7 @@
-const CollegeDetails = require("../models/CollegeDetails");
-const Department = require("../models/Department");
+import CollegeDetails from "../models/CollegeDetails.js";
+import Department from "../models/Department.js";
 
-exports.addCollegeDetails = async (req, res) => {
+export const addCollegeDetails = async (req, res) => {
   try {
     const { name, email, contactNumber } = req.body;
 
@@ -28,7 +28,7 @@ exports.addCollegeDetails = async (req, res) => {
   }
 };
 
-exports.addDepartment = async (req, res) => {
+export const addDepartment = async (req, res) => {
   try {
     const { name, collegeId } = req.body;
 
@@ -114,7 +114,7 @@ exports.addDepartment = async (req, res) => {
   }
 };
 
-exports.getCollegeDetails = async (req, res) => {
+export const getCollegeDetails = async (req, res) => {
   try {
     const filter = req.query.filter || "";
 
@@ -137,7 +137,7 @@ exports.getCollegeDetails = async (req, res) => {
   }
 };
 
-exports.getDepartmentDetails = async (req, res) => {
+export const getDepartmentDetails = async (req, res) => {
   try {
     const college = req.query.college || "";
     const filter = req.query.filter || "";

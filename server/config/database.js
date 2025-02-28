@@ -1,7 +1,8 @@
-const mongoose = require("mongoose");
-require("dotenv").config();
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+dotenv.config();
 
-exports.dbConnect = () => {
+export const dbConnect = () => {
   mongoose
     .connect(process.env.DATABASE_URL)
     .then(() => {

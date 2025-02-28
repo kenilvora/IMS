@@ -1,13 +1,15 @@
-const express = require("express");
-const cookieParser = require("cookie-parser");
-const { dbConnect } = require("./config/database");
-const userRoutes = require("./routes/userRoute");
-const internshipRoutes = require("./routes/internshipRoute");
-const collegeRoutes = require("./routes/collegeRoutes");
-require("dotenv").config();
-const cors = require("cors");
-const { cloudinaryConnect } = require("./config/cloudinary");
-const fileUpload = require("express-fileupload");
+import express from "express";
+import cookieParser from "cookie-parser";
+import { dbConnect } from "./config/database.js";
+import userRoutes from "./routes/userRoute.js";
+import internshipRoutes from "./routes/internshipRoute.js";
+import collegeRoutes from "./routes/collegeRoutes.js";
+import dotenv from "dotenv";
+import cors from "cors";
+import { cloudinaryConnect } from "./config/cloudinary.js";
+import fileUpload from "express-fileupload";
+
+dotenv.config();
 
 const app = express();
 app.use(express.json());

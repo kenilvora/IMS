@@ -1,5 +1,5 @@
-const express = require("express");
-const {
+import express from "express";
+import {
   signup,
   login,
   getMe,
@@ -7,12 +7,13 @@ const {
   getAllUsers,
   updateProfile,
   sendOtp,
-} = require("../controllers/Auth");
-const { auth } = require("../middlewares/auth");
-const {
+} from "../controllers/Auth.js";
+import { auth } from "../middlewares/auth.js";
+import {
   resetPasswordToken,
   resetPassword,
-} = require("../controllers/ResetPassword");
+} from "../controllers/ResetPassword.js";
+
 const router = express.Router();
 
 // Signup Route
@@ -42,4 +43,4 @@ router.post("/resetPasswordToken", resetPasswordToken);
 // Reset Password Route
 router.post("/resetPassword/:token", resetPassword);
 
-module.exports = router;
+export default router;

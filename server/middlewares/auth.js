@@ -1,6 +1,6 @@
-const jwt = require("jsonwebtoken");
+import jwt from "jsonwebtoken";
 
-exports.auth = async (req, res, next) => {
+export const auth = async (req, res, next) => {
   try {
     const token = req.cookies.token;
 
@@ -31,7 +31,7 @@ exports.auth = async (req, res, next) => {
   }
 };
 
-exports.isStudent = async (req, res, next) => {
+export const isStudent = async (req, res, next) => {
   try {
     if (req.user.role !== "Student") {
       return res.status(403).json({
@@ -49,7 +49,7 @@ exports.isStudent = async (req, res, next) => {
   }
 };
 
-exports.isSupervisor = async (req, res, next) => {
+export const isSupervisor = async (req, res, next) => {
   try {
     if (req.user.role !== "Supervisor") {
       return res.status(403).json({
@@ -67,7 +67,7 @@ exports.isSupervisor = async (req, res, next) => {
   }
 };
 
-exports.isAdmin = async (req, res, next) => {
+export const isAdmin = async (req, res, next) => {
   try {
     if (req.user.role !== "Admin") {
       return res.status(403).json({

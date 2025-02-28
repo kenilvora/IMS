@@ -1,11 +1,6 @@
-const express = require("express");
-const {
-  auth,
-  isStudent,
-  isAdmin,
-  isSupervisor,
-} = require("../middlewares/auth");
-const {
+import express from "express";
+import { auth, isStudent, isAdmin, isSupervisor } from "../middlewares/auth.js";
+import {
   addInternship,
   addTask,
   getTasks,
@@ -19,7 +14,8 @@ const {
   getInternshipByStatus,
   getInternshipByStatusForFaculty,
   getAllInternshipsByStatus,
-} = require("../controllers/Internship");
+} from "../controllers/Internship.js";
+
 const router = express.Router();
 
 // Add Internship Route
@@ -76,4 +72,4 @@ router.get(
   getAllInternshipsByStatus
 );
 
-module.exports = router;
+export default router;

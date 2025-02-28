@@ -1,12 +1,12 @@
-const User = require("../models/User");
-const { mailSender } = require("../utils/mailSender");
-const dns = require("dns");
-const crypto = require("crypto");
-const { resetPasswordTemplate } = require("../mail/resetPasswordTemplate");
-const bcrypt = require("bcrypt");
-const { passwordUpdate } = require("../mail/passwordUpdate");
+import User from "../models/User.js";
+import { mailSender } from "../utils/mailSender.js";
+import dns from "dns";
+import crypto from "crypto";
+import { resetPasswordTemplate } from "../mail/resetPasswordTemplate.js";
+import bcrypt from "bcrypt";
+import { passwordUpdate } from "../mail/passwordUpdate.js";
 
-exports.resetPasswordToken = async (req, res) => {
+export const resetPasswordToken = async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -87,7 +87,7 @@ exports.resetPasswordToken = async (req, res) => {
   }
 };
 
-exports.resetPassword = async (req, res) => {
+export const resetPassword = async (req, res) => {
   try {
     const { password, confirmPassword } = req.body;
     const { token } = req.params;

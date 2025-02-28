@@ -1,10 +1,12 @@
-const InternshipDetails = require("../models/InternshipDetails");
-const User = require("../models/User");
-const Task = require("../models/Task");
-const CompanyDetails = require("../models/CompanyDetails");
-const cron = require("node-cron");
-const { uploadFileToCloudinary } = require("../utils/uploadFileToCloudinary");
-require("dotenv").config();
+import InternshipDetails from "../models/InternshipDetails.js";
+import User from "../models/User.js";
+import Task from "../models/Task.js";
+import CompanyDetails from "../models/CompanyDetails.js";
+import cron from "node-cron";
+import { uploadFileToCloudinary } from "../utils/uploadFileToCloudinary.js";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 cron.schedule("0 0 * * *", async () => {
   console.log("Updating progress for internships...");
@@ -30,7 +32,7 @@ cron.schedule("0 0 * * *", async () => {
   }
 });
 
-exports.addInternship = async (req, res) => {
+export const addInternship = async (req, res) => {
   try {
     const {
       title,
@@ -118,7 +120,7 @@ exports.addInternship = async (req, res) => {
   }
 };
 
-exports.addTask = async (req, res) => {
+export const addTask = async (req, res) => {
   try {
     const { title, description, deadline, status = "InProgress" } = req.body;
     const internShipId = req.params.id;
@@ -179,7 +181,7 @@ exports.addTask = async (req, res) => {
   }
 };
 
-exports.getTask = async (req, res) => {
+export const getTask = async (req, res) => {
   try {
     const internShipId = req.params.internShipId;
     const taskId = req.params.taskId;
@@ -224,7 +226,7 @@ exports.getTask = async (req, res) => {
   }
 };
 
-exports.getTasks = async (req, res) => {
+export const getTasks = async (req, res) => {
   try {
     const internShipId = req.params.id;
     const id = req.user.userId;
@@ -264,7 +266,7 @@ exports.getTasks = async (req, res) => {
   }
 };
 
-exports.getInternship = async (req, res) => {
+export const getInternship = async (req, res) => {
   try {
     const internShipId = req.params.id;
     const id = req.user.userId;
@@ -302,7 +304,7 @@ exports.getInternship = async (req, res) => {
   }
 };
 
-exports.getAllInternshipsOfMe = async (req, res) => {
+export const getAllInternshipsOfMe = async (req, res) => {
   try {
     const id = req.user.userId;
 
@@ -334,7 +336,7 @@ exports.getAllInternshipsOfMe = async (req, res) => {
   }
 };
 
-exports.getAllInternships = async (req, res) => {
+export const getAllInternships = async (req, res) => {
   try {
     const internShips = await InternshipDetails.find()
       .populate({
@@ -362,7 +364,7 @@ exports.getAllInternships = async (req, res) => {
   }
 };
 
-exports.updateInternship = async (req, res) => {
+export const updateInternship = async (req, res) => {
   try {
     const internShipId = req.params.id;
     const id = req.user.userId;
@@ -456,7 +458,7 @@ exports.updateInternship = async (req, res) => {
   }
 };
 
-exports.updateTask = async (req, res) => {
+export const updateTask = async (req, res) => {
   try {
     const internShipId = req.params.internShipId;
     const taskId = req.params.taskId;
@@ -520,7 +522,7 @@ exports.updateTask = async (req, res) => {
   }
 };
 
-exports.commentOnTask = async (req, res) => {
+export const commentOnTask = async (req, res) => {
   try {
     const internShipId = req.params.internShipId;
     const taskId = req.params.taskId;
@@ -582,7 +584,7 @@ exports.commentOnTask = async (req, res) => {
   }
 };
 
-exports.getInternshipByStatus = async (req, res) => {
+export const getInternshipByStatus = async (req, res) => {
   try {
     const status = req.query.status;
     const id = req.user.userId;
@@ -630,7 +632,7 @@ exports.getInternshipByStatus = async (req, res) => {
   }
 };
 
-exports.getInternshipByStatusForFaculty = async (req, res) => {
+export const getInternshipByStatusForFaculty = async (req, res) => {
   try {
     const status = req.query.status;
     const id = req.query.facultyId;
@@ -693,7 +695,7 @@ exports.getInternshipByStatusForFaculty = async (req, res) => {
   }
 };
 
-exports.getAllInternshipsByStatus = async (req, res) => {
+export const getAllInternshipsByStatus = async (req, res) => {
   try {
     const status = req.query.status;
 
