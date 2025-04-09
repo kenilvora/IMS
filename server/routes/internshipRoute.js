@@ -36,7 +36,7 @@ router.get("/:id/getInternship", auth, isStudent, getInternship);
 // Get All Internships Route of Student
 router.get("/getAllInternships", auth, isStudent, getAllInternshipsOfMe);
 
-// Get All Internships Route in Database
+// Get All Internships Route for Admin
 router.get("/getAll", auth, isAdmin, getAllInternships);
 
 // Update Internship Route by Internship Id

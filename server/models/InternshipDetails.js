@@ -34,6 +34,32 @@ const internship = new mongoose.Schema(
       trim: true,
       required: true,
     },
+    mentor: {
+      name: {
+        type: String,
+        trim: true,
+        required: true,
+      },
+      email: {
+        type: String,
+        trim: true,
+        required: true,
+      },
+      contact: {
+        type: String,
+        trim: true,
+        required: true,
+      },
+      image: {
+        type: String,
+        trim: true,
+      },
+    },
+    location: {
+      type: String,
+      trim: true,
+      required: true,
+    },
     certificate: {
       type: String,
       trim: true,

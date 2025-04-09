@@ -120,6 +120,13 @@ profileSchema.pre("save", function (next, options) {
     this.skills = undefined;
     this.education = undefined;
   }
+  if (userRole && userRole === "Supervisor") {
+    this.projects = undefined;
+    this.education = undefined;
+    this.yearOfStudy = undefined;
+    this.passingYear = undefined;
+    this.resume = undefined;
+  }
   next();
 });
 
