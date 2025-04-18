@@ -2,7 +2,6 @@ import User from "../models/User.js";
 import Profile from "../models/Profile.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import dns from "dns";
 import otpGenerator from "otp-generator";
 import Otp from "../models/Otp.js";
 import { uploadFileToCloudinary } from "../utils/uploadFileToCloudinary.js";
@@ -65,129 +64,118 @@ export const signup = async (req, res) => {
       });
     }
 
-    const domain = email.split("@")[1];
+    const user = await User.findOne({
+      $or: [{ email: email }, { enrollmentNumber: enrollmentNumber }],
+    });
 
-    dns.resolveMx(domain, async (err) => {
-      if (err) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid email domain",
-        });
-      }
-
-      const user = await User.findOne({
-        $or: [{ email: email }, { enrollmentNumber: enrollmentNumber }],
+    if (user) {
+      return res.status(400).json({
+        success: false,
+        message: "User already exists",
       });
+    }
 
-      if (user) {
-        return res.status(400).json({
-          success: false,
-          message: "User already exists",
-        });
-      }
+    const recentOtp = Otp.findOne({
+      email: email,
+    });
 
-      const recentOtp = Otp.findOne({
-        email: email,
+    if (!recentOtp) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP not found",
       });
+    }
 
-      if (!recentOtp) {
-        return res.status(400).json({
-          success: false,
-          message: "OTP not found",
-        });
-      }
-
-      if (recentOtp.expires_at <= Date.now()) {
-        return res.status(400).json({
-          success: false,
-          message: "OTP has been expired, Please request a new OTP",
-        });
-      }
-
-      if (recentOtp.otp !== otp) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid OTP",
-        });
-      }
-
-      let facultyDetails = null;
-
-      if (role === "Student") {
-        facultyDetails = await User.findById(facultyId);
-
-        if (!facultyDetails || facultyDetails.role !== "Supervisor") {
-          return res.status(400).json({
-            success: false,
-            message: "Invalid faculty details",
-          });
-        }
-      }
-
-      const collegeDetails = await CollegeDetails.findById(collegeId);
-
-      if (!collegeDetails) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid college details",
-        });
-      }
-
-      if (role !== "Admin") {
-        const departmentDetails = await Department.findById(departmentId);
-
-        if (!departmentDetails) {
-          return res.status(400).json({
-            success: false,
-            message: "Invalid department details",
-          });
-        }
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      const profile = new Profile({
-        about: null,
-        skills: null,
-        experience: [],
-        education: [],
-        projects: [],
-        social: {
-          github: null,
-          linkedIn: null,
-        },
-        resume: null,
-        collegeDetail: collegeId,
-        department: departmentId,
-        yearOfStudy: null,
-        passingYear: null,
+    if (recentOtp.expires_at <= Date.now()) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP has been expired, Please request a new OTP",
       });
+    }
 
-      await profile.save({ userRole: role });
-
-      const newUser = await User.create({
-        firstName,
-        lastName,
-        email,
-        password: hashedPassword,
-        contactNumber,
-        enrollmentNumber,
-        image: `https://api.dicebear.com/5.x/initials/svg?seed=${firstName}%20${lastName}`,
-        profile: profile._id,
-        faculty: facultyId,
-        role,
+    if (recentOtp.otp !== otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP",
       });
+    }
 
-      if (role === "Student") {
-        facultyDetails.internStudents.push(newUser._id);
+    let facultyDetails = null;
 
-        await facultyDetails.save();
+    if (role === "Student") {
+      facultyDetails = await User.findById(facultyId);
+
+      if (!facultyDetails || facultyDetails.role !== "Supervisor") {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid faculty details",
+        });
       }
+    }
 
-      return res.status(201).json({
-        success: true,
-        message: "User created successfully",
+    const collegeDetails = await CollegeDetails.findById(collegeId);
+
+    if (!collegeDetails) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid college details",
       });
+    }
+
+    if (role !== "Admin") {
+      const departmentDetails = await Department.findById(departmentId);
+
+      if (!departmentDetails) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid department details",
+        });
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const profile = new Profile({
+      about: null,
+      skills: null,
+      experience: [],
+      education: [],
+      projects: [],
+      social: {
+        github: null,
+        linkedIn: null,
+      },
+      resume: null,
+      collegeDetail: collegeId,
+      department: departmentId,
+      yearOfStudy: null,
+      passingYear: null,
+    });
+
+    await profile.save({ userRole: role });
+
+    const newUser = await User.create({
+      firstName,
+      lastName,
+      email,
+      password: hashedPassword,
+      contactNumber,
+      enrollmentNumber,
+      image: `https://api.dicebear.com/5.x/initials/svg?seed=${firstName}%20${lastName}`,
+      profile: profile._id,
+      faculty: facultyId,
+      role,
+    });
+
+    if (role === "Student") {
+      facultyDetails.internStudents.push(newUser._id);
+
+      await facultyDetails.save();
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "User created successfully",
     });
   } catch (err) {
     console.log(err);
@@ -218,52 +206,42 @@ export const login = async (req, res) => {
       });
     }
 
-    const domain = email.split("@")[1];
+    const user = await User.findOne({ email: email });
 
-    dns.resolveMx(domain, async (err) => {
-      if (err) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid email domain",
-        });
-      }
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "User does not exist",
+      });
+    }
 
-      const user = await User.findOne({ email: email });
+    if (await bcrypt.compare(password, user.password)) {
+      const payload = {
+        userId: user._id,
+        role: user.role,
+        email: user.email,
+      };
 
-      if (!user) {
-        return res.status(400).json({
-          success: false,
-          message: "User does not exist",
-        });
-      }
+      const token = jwt.sign(payload, process.env.JWT_SECRET);
 
-      if (await bcrypt.compare(password, user.password)) {
-        const payload = {
-          userId: user._id,
-          role: user.role,
-          email: user.email,
-        };
+      res.cookie("token", token, {
+        samesite: "lax",
+        secure: true,
+        maxAge: 31536000000,
+      });
 
-        const token = jwt.sign(payload, process.env.JWT_SECRET);
-
-        res.cookie("token", token, {
-          secure: true,
-          samesite: "lax",
-          maxAge: 31536000000,
-        });
-
-        return res.status(200).json({
-          success: true,
-          message: "User logged in successfully",
-          token: token,
-        });
-      } else {
-        return res.status(400).json({
-          success: false,
-          message: "Incorrect password",
-        });
-      }
-    });
+      return res.status(200).json({
+        success: true,
+        message: "User logged in successfully",
+        token: token,
+        role: user.role,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: "Incorrect password",
+      });
+    }
   } catch (err) {
     console.log(err);
     return res.status(500).json({
@@ -552,64 +530,53 @@ export const sendOtp = async (req, res) => {
       });
     }
 
-    const domain = email.split("@")[1];
+    const user = await User.findOne({ email: email });
 
-    dns.resolveMx(domain, async (err) => {
-      if (err) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid email domain",
-        });
-      }
+    if (user) {
+      return res.status(400).json({
+        success: false,
+        message: "User is already registered",
+      });
+    }
 
-      const user = await User.findOne({ email: email });
+    let otp = otpGenerator.generate(6, {
+      digits: true,
+      upperCaseAlphabets: false,
+      lowerCaseAlphabets: false,
+      specialChars: false,
+    });
 
-      if (user) {
-        return res.status(400).json({
-          success: false,
-          message: "User is already registered",
-        });
-      }
+    let result = await Otp.findOne({
+      otp: otp,
+    });
 
-      let otp = otpGenerator.generate(6, {
+    while (result) {
+      otp = otpGenerator.generate(6, {
         digits: true,
         upperCaseAlphabets: false,
         lowerCaseAlphabets: false,
         specialChars: false,
       });
 
-      let result = await Otp.findOne({
+      result = await Otp.findOne({
         otp: otp,
       });
+    }
 
-      while (result) {
-        otp = otpGenerator.generate(6, {
-          digits: true,
-          upperCaseAlphabets: false,
-          lowerCaseAlphabets: false,
-          specialChars: false,
-        });
+    const emailExist = await Otp.findOne({ email: email });
 
-        result = await Otp.findOne({
-          otp: otp,
-        });
-      }
+    if (emailExist) {
+      await Otp.findOneAndDelete({ email: email });
+    }
 
-      const emailExist = await Otp.findOne({ email: email });
+    await Otp.create({
+      otp: otp,
+      email: email,
+    });
 
-      if (emailExist) {
-        await Otp.findOneAndDelete({ email: email });
-      }
-
-      await Otp.create({
-        otp: otp,
-        email: email,
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: "OTP sent successfully",
-      });
+    return res.status(200).json({
+      success: true,
+      message: "OTP sent successfully",
     });
   } catch (err) {
     console.log(err);

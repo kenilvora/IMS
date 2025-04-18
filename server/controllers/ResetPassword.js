@@ -26,17 +26,6 @@ export const resetPasswordToken = async (req, res) => {
       });
     }
 
-    const domain = email.split("@")[1];
-
-    dns.resolveMx(domain, async (error) => {
-      if (error) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid email domain",
-        });
-      }
-    });
-
     const user = await User.findOne({ email: email });
 
     if (!user) {
