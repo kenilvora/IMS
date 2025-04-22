@@ -23,90 +23,59 @@ import {
 } from "@/components/ui/table";
 import MainLayout from "@/components/main-layout";
 import { NavLink, useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
-import Spinner from "@/components/Spinner";
-import toast from "react-hot-toast";
-import { apiConnector } from "@/services/apiConnector";
 
-type User = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  image: string;
-  role: string;
-  college: string;
-  department: string;
-  enrollmentNumber: string;
-  year: string;
-  semester: string;
-  address: string;
-};
-
-type Internship = {
-  id: string;
-  company: string;
-  position: string;
-  supervisor: string;
-  status: string;
-  startDate: string;
-  endDate: string;
-};
-
-type InternStudent = {
-  id: string;
-  name: string;
-  image: string;
-  email: string;
-  college: string;
-  department: string;
-};
-
-export default function UserDetails() {
+export default function StudentDetails() {
   const params = useParams();
   const userId = params.id as string;
 
-  const [user, setUser] = useState<User>({} as User);
-  const [internships, setInternships] = useState<Internship[]>([]);
-  const [internStudents, setInternStudents] = useState<InternStudent[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Dummy data for the user details
+  const user = {
+    id: "user-001",
+    firstName: "John",
+    lastName: "Doe",
+    email: "john.doe@university.edu",
+    phone: "+1 (555) 123-4567",
+    role: "student",
+    college: "College of Engineering",
+    department: "Computer Science",
+    studentId: "CS2025001",
+    year: "3rd Year",
+    semester: "Spring 2025",
+    address: "123 University Ave, Apt 4B, College Town, CT 12345",
+    status: "active",
+    createdAt: "2024-09-01",
+    lastLogin: "2025-02-15",
+  };
 
-  useEffect(() => {
-    const fetchUserDetails = async () => {
-      setLoading(true);
-      try {
-        const res = await apiConnector(
-          "GET",
-          `${import.meta.env.VITE_API_URL}/auth/user/${userId}`
-        );
+  // Dummy data for internships
+  const internships = [
+    {
+      id: "int-001",
+      company: "TechCorp Inc.",
+      position: "Frontend Developer Intern",
+      supervisor: "Dr. Sarah Johnson",
+      status: "ongoing",
+      startDate: "2025-01-15",
+      endDate: "2025-06-15",
+    },
+    {
+      id: "int-002",
+      company: "DataSys Solutions",
+      position: "Data Analyst Intern",
+      supervisor: "Dr. Michael Brown",
+      status: "completed",
+      startDate: "2024-06-01",
+      endDate: "2024-12-01",
+    },
+  ];
 
-        if (!res.data.success) {
-          throw new Error(res.data.message);
-        }
-
-        setUser(res.data.user);
-        setInternships(res.data.internships);
-        setInternStudents(res.data.internStudents);
-      } catch (error) {
-        toast.error("Failed to fetch user details");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUserDetails();
-  }, []);
-
-  return loading ? (
-    <Spinner />
-  ) : (
-    <MainLayout role="admin">
+  return (
+    <MainLayout role="supervisor">
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" asChild>
-              <NavLink to="/admin/users">
+              <NavLink to={`/supervisor/internships/${userId}`}>
                 <ArrowLeft className="h-4 w-4" />
                 <span className="sr-only">Back</span>
               </NavLink>
@@ -115,7 +84,13 @@ export default function UserDetails() {
               <h1 className="text-2xl font-bold tracking-tight">
                 {user.firstName} {user.lastName}
               </h1>
-              <p className="text-muted-foreground">{user.role}</p>
+              <p className="text-muted-foreground">
+                {user.role === "student"
+                  ? "Student"
+                  : user.role === "supervisor"
+                  ? "Supervisor"
+                  : "Admin"}
+              </p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -133,7 +108,7 @@ export default function UserDetails() {
               <CardContent className="pt-6">
                 <div className="flex flex-col items-center space-y-4">
                   <Avatar className="h-24 w-24">
-                    <AvatarImage src={user.image} alt="User Avatar" />
+                    <AvatarImage src={`/placeholder.svg?height=96&width=96`} />
                     <AvatarFallback>
                       {user.firstName.charAt(0)}
                       {user.lastName.charAt(0)}
@@ -212,9 +187,9 @@ export default function UserDetails() {
                   <div className="flex items-start gap-2">
                     <GraduationCap className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <div>
-                      <div className="font-medium">Enrollment Number</div>
+                      <div className="font-medium">Student ID</div>
                       <div className="text-sm text-muted-foreground">
-                        {user.enrollmentNumber}
+                        {user.studentId}
                       </div>
                     </div>
                   </div>
@@ -250,15 +225,11 @@ export default function UserDetails() {
                 <Tabs defaultValue="overview">
                   <TabsList className="mb-4">
                     <TabsTrigger value="overview">Overview</TabsTrigger>
-                    {user.role === "Student" && (
-                      <TabsTrigger value="internships">Internships</TabsTrigger>
-                    )}
-                    {user.role === "Supervisor" && (
-                      <TabsTrigger value="internStudents">Students</TabsTrigger>
-                    )}
+                    <TabsTrigger value="internships">Internships</TabsTrigger>
+                    <TabsTrigger value="activity">Activity</TabsTrigger>
                   </TabsList>
                   <TabsContent value="overview">
-                    <div className="grid grid-cols-1 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-2">
                           Personal Information
@@ -296,9 +267,9 @@ export default function UserDetails() {
                         </h3>
                         <div className="space-y-2">
                           <div className="flex justify-between">
-                            <span className="text-sm">Enrollment Number</span>
+                            <span className="text-sm">Student ID</span>
                             <span className="text-sm font-medium">
-                              {user.enrollmentNumber}
+                              {user.studentId}
                             </span>
                           </div>
                           <div className="flex justify-between">
@@ -327,123 +298,146 @@ export default function UserDetails() {
                           </div>
                         </div>
                       </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                          Account Information
+                        </h3>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-sm">Status</span>
+                            <span className="text-sm font-medium capitalize">
+                              {user.status}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Created At</span>
+                            <span className="text-sm font-medium">
+                              {new Date(user.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Last Login</span>
+                            <span className="text-sm font-medium">
+                              {new Date(user.lastLogin).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </TabsContent>
-                  {user.role === "Student" && (
-                    <TabsContent value="internships">
-                      <div className="rounded-md border">
-                        <Table>
-                          <TableHeader>
+                  <TabsContent value="internships">
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Company</TableHead>
+                            <TableHead>Position</TableHead>
+                            <TableHead>Supervisor</TableHead>
+                            <TableHead>Duration</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">
+                              Actions
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {internships.length === 0 ? (
                             <TableRow>
-                              <TableHead>Company</TableHead>
-                              <TableHead>Position</TableHead>
-                              <TableHead>Supervisor</TableHead>
-                              <TableHead>Duration</TableHead>
-                              <TableHead>Status</TableHead>
+                              <TableCell
+                                colSpan={6}
+                                className="h-24 text-center"
+                              >
+                                No internships found.
+                              </TableCell>
                             </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {internships.length === 0 ? (
-                              <TableRow>
-                                <TableCell
-                                  colSpan={6}
-                                  className="h-24 text-center"
-                                >
-                                  No internships found.
+                          ) : (
+                            internships.map((internship) => (
+                              <TableRow key={internship.id}>
+                                <TableCell>{internship.company}</TableCell>
+                                <TableCell>{internship.position}</TableCell>
+                                <TableCell>{internship.supervisor}</TableCell>
+                                <TableCell>
+                                  {new Date(
+                                    internship.startDate
+                                  ).toLocaleDateString()}{" "}
+                                  -{" "}
+                                  {new Date(
+                                    internship.endDate
+                                  ).toLocaleDateString()}
                                 </TableCell>
-                              </TableRow>
-                            ) : (
-                              internships.map((internship) => (
-                                <TableRow key={internship.id}>
-                                  <TableCell>{internship.company}</TableCell>
-                                  <TableCell>{internship.position}</TableCell>
-                                  <TableCell>{internship.supervisor}</TableCell>
-                                  <TableCell>
-                                    {new Date(
-                                      internship.startDate
-                                    ).toLocaleDateString()}{" "}
-                                    -{" "}
-                                    {new Date(
-                                      internship.endDate
-                                    ).toLocaleDateString()}
-                                  </TableCell>
-                                  <TableCell>
-                                    <div
-                                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                        internship.status === "ongoing"
-                                          ? "bg-blue-50 text-blue-600"
-                                          : "bg-green-50 text-green-600"
-                                      }`}
+                                <TableCell>
+                                  <div
+                                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                      internship.status === "ongoing"
+                                        ? "bg-blue-50 text-blue-600"
+                                        : "bg-green-50 text-green-600"
+                                    }`}
+                                  >
+                                    {internship.status.charAt(0).toUpperCase() +
+                                      internship.status.slice(1)}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button variant="ghost" size="sm" asChild>
+                                    <NavLink
+                                      to={`/admin/internships/${internship.id}`}
                                     >
-                                      {internship.status
-                                        .charAt(0)
-                                        .toUpperCase() +
-                                        internship.status.slice(1)}
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              ))
-                            )}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </TabsContent>
-                  )}
-                  {user.role === "Supervisor" && (
-                    <TabsContent value="internStudents">
-                      <div className="rounded-md border">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>User</TableHead>
-                              <TableHead>College</TableHead>
-                              <TableHead>Department</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {internStudents.length === 0 ? (
-                              <TableRow>
-                                <TableCell
-                                  colSpan={6}
-                                  className="h-24 text-center"
-                                >
-                                  No students found.
+                                      View
+                                    </NavLink>
+                                  </Button>
                                 </TableCell>
                               </TableRow>
-                            ) : (
-                              internStudents.map((student) => (
-                                <TableRow key={student.id}>
-                                  <TableCell>
-                                    <div className="flex items-center gap-3">
-                                      <Avatar>
-                                        <AvatarImage
-                                          src={student.image}
-                                          alt={student.name}
-                                        />
-                                        <AvatarFallback>
-                                          {student.name.charAt(0)}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <div>
-                                        <div className="font-medium">
-                                          {student.name}
-                                        </div>
-                                        <div className="text-sm text-muted-foreground">
-                                          {student.email}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>{student.college}</TableCell>
-                                  <TableCell>{student.department}</TableCell>
-                                </TableRow>
-                              ))
-                            )}
-                          </TableBody>
-                        </Table>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="activity">
+                    <div className="space-y-4">
+                      <div className="border rounded-md p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">Logged in</p>
+                            <p className="text-sm text-muted-foreground">
+                              User logged in to the system
+                            </p>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(user.lastLogin).toLocaleString()}
+                          </p>
+                        </div>
                       </div>
-                    </TabsContent>
-                  )}
+                      <div className="border rounded-md p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">Added new internship</p>
+                            <p className="text-sm text-muted-foreground">
+                              Added internship at {internships[0].company}
+                            </p>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(
+                              internships[0].startDate
+                            ).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="border rounded-md p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">Account created</p>
+                            <p className="text-sm text-muted-foreground">
+                              User account was created
+                            </p>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(user.createdAt).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
                 </Tabs>
               </CardContent>
             </Card>

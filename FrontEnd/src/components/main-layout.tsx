@@ -9,7 +9,6 @@ import {
   Users,
   Building,
   Layers,
-  Settings,
   Bell,
   Menu,
   X,
@@ -37,7 +36,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import Cookie from "js-cookie";
+import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import { apiConnector } from "@/services/apiConnector";
 
@@ -50,6 +49,7 @@ type User = {
   firstName: string;
   lastName: string;
   email: string;
+  image: string;
 };
 
 export default function MainLayout({ children, role }: MainLayoutProps) {
@@ -58,13 +58,13 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
   const [user, setUser] = useState<User>();
 
   useEffect(() => {
-    const userDetails = Cookie.get("user")
-      ? JSON.parse(Cookie.get("user")!)
+    const userDetails = Cookies.get("user")
+      ? JSON.parse(Cookies.get("user")!)
       : null;
     if (userDetails) {
       setUser(userDetails);
     } else {
-      navigate("/login", { replace: true });
+      navigate("/", { replace: true });
     }
   }, []);
 
@@ -80,7 +80,8 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
   const supervisorNavItems = [
     { href: "/supervisor", label: "Dashboard", icon: Home },
     { href: "/supervisor/internships", label: "Internships", icon: Briefcase },
-    { href: "/supervisor/profile", label: "Profile", icon: User },
+    { href: "/supervisor/tasks", label: "Tasks", icon: CheckSquare },
+    // { href: "/supervisor/profile", label: "Profile", icon: User },
   ];
 
   const adminNavItems = [
@@ -89,7 +90,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
     { href: "/admin/internships", label: "Internships", icon: Briefcase },
     { href: "/admin/colleges", label: "Colleges", icon: Building },
     { href: "/admin/departments", label: "Departments", icon: Layers },
-    { href: "/admin/settings", label: "Settings", icon: Settings },
+    // { href: "/admin/settings", label: "Settings", icon: Settings },
   ];
 
   const navItems =
@@ -110,7 +111,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
 
   const userEmail = user?.email;
 
-  const userImage = `https://api.dicebear.com/9.x/initials/svg?seed=${userName}`;
+  const userImage = user?.image;
 
   const logOutHandler = async () => {
     try {
@@ -124,16 +125,16 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
         return;
       }
 
-      Cookie.remove("token", {
+      Cookies.remove("token", {
         sameSite: "lax",
         secure: true,
       });
-      Cookie.remove("user", {
+      Cookies.remove("user", {
         sameSite: "lax",
         secure: true,
       });
       localStorage.clear();
-      navigate("/login", { replace: true });
+      navigate("/", { replace: true });
       toast.success("Logged out successfully");
     } catch (err) {
       toast.error("Error logging out");
@@ -297,7 +298,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 p-4 md:p-8 w-full overflow-x-hidden">
+          <main className="flex-1 p-4 md:p-6 w-full overflow-x-hidden">
             {children}
           </main>
         </div>

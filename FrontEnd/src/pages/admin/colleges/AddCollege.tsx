@@ -1,4 +1,3 @@
-import type React from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,27 +9,47 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import MainLayout from "@/components/main-layout";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { useState } from "react";
+import Spinner from "@/components/Spinner";
+import toast from "react-hot-toast";
+import { apiConnector } from "@/services/apiConnector";
 
 export default function AddCollege() {
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // In a real app, this would submit the form data to the backend
-    navigate("/admin/colleges");
+  const [loading, setLoading] = useState(false);
+
+  const { register, handleSubmit } = useForm();
+
+  const onSubmit = async (data: any) => {
+    setLoading(true);
+    try {
+      const res = await apiConnector(
+        "POST",
+        `${import.meta.env.VITE_API_URL}/college/addCollege`,
+        data
+      );
+
+      if (!res.data.success) {
+        throw new Error(res.data.message);
+      }
+
+      toast.success("College added successfully");
+      navigate("/admin/colleges");
+    } catch (error) {
+      const errMsg = (error as any).response?.data?.message;
+      toast.error(errMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return (
+  return loading ? (
+    <Spinner />
+  ) : (
     <MainLayout role="admin">
       <div className="space-y-6">
         <div>
@@ -40,7 +59,7 @@ export default function AddCollege() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <Card className="">
             <CardHeader>
               <CardTitle>College Information</CardTitle>
@@ -51,62 +70,62 @@ export default function AddCollege() {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="name">College Name</Label>
+                  <Label htmlFor="name">College Name*</Label>
                   <Input
                     id="name"
                     placeholder="e.g. College of Engineering"
                     required
+                    {...register("name")}
+                    type="text"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="code">College Code</Label>
-                  <Input id="code" placeholder="e.g. COE" required />
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="code">College Code*</Label>
+                  <Input
+                    id="code"
+                    placeholder="e.g. COE"
+                    required
+                    {...register("code")}
+                    type="text"
+                  />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="status">Status</Label>
-                  <Select defaultValue="active">
-                    <SelectTrigger id="status">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="space-y- md:col-span-2">
+                  <Label htmlFor="dean">Dean</Label>
+                  <Input
+                    id="dean"
+                    placeholder="e.g. Dr. Jane Smith"
+                    {...register("dean")}
+                    type="text"
+                  />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="dean">Dean</Label>
-                  <Input id="dean" placeholder="e.g. Dr. Jane Smith" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">Email*</Label>
                   <Input
                     id="email"
                     type="email"
                     placeholder="e.g. engineering@university.edu"
+                    required
+                    {...register("email")}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
+                <div className="space-y-2  md:col-span-2">
+                  <Label htmlFor="phone">Phone*</Label>
                   <Input
                     id="phone"
                     type="tel"
                     placeholder="e.g. +1 (555) 123-4567"
+                    required
+                    {...register("phone")}
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="address">Address</Label>
+                  <Label htmlFor="address">Address*</Label>
                   <Input
                     id="address"
                     placeholder="e.g. 123 University Ave, College Town, CT 12345"
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Enter a description of the college..."
-                    rows={4}
+                    required
+                    {...register("address")}
+                    type="text"
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
@@ -115,6 +134,7 @@ export default function AddCollege() {
                     id="website"
                     type="url"
                     placeholder="e.g. https://engineering.university.edu"
+                    {...register("website")}
                   />
                 </div>
               </div>

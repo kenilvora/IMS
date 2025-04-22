@@ -1,4 +1,3 @@
-import type React from "react";
 import { useState } from "react";
 import { CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,19 +28,75 @@ import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import MainLayout from "@/components/main-layout";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import Spinner from "@/components/Spinner";
+import toast from "react-hot-toast";
+import { apiConnector } from "@/services/apiConnector";
 
 export default function AddInternship() {
   const navigate = useNavigate();
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
+  const [department, setDepartment] = useState("");
+  const [status, setStatus] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // In a real app, this would submit the form data to the backend
-    navigate("/student/internships");
+  const [loading, setLoading] = useState(false);
+
+  const { register, handleSubmit } = useForm();
+
+  const submitHandler = async (data: any) => {
+    setLoading(true);
+    try {
+      if (!department || department === "") {
+        toast.error("Please select a department");
+        return;
+      }
+      if (!startDate) {
+        toast.error("Please select a start date");
+        return;
+      }
+      if (!endDate) {
+        toast.error("Please select an end date");
+        return;
+      }
+
+      const bodyData = {
+        companyName: data.companyName,
+        companyEmail: data.companyEmail,
+        position: data.position,
+        description: data.description,
+        supervisorName: data.supervisorName,
+        supervisorEmail: data.supervisorEmail,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        department: department,
+        skills: data.skills,
+        status: status,
+      };
+
+      const res = await apiConnector(
+        "POST",
+        `${import.meta.env.VITE_API_URL}/internship/addInternship`,
+        bodyData
+      );
+
+      if (!res.data.success) {
+        throw new Error(res.data.message);
+      }
+
+      toast.success("Internship added successfully");
+      navigate("/student/internships");
+    } catch (error) {
+      const errMsg = (error as any).response?.data?.message;
+      toast.error(errMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return (
+  return loading ? (
+    <Spinner />
+  ) : (
     <MainLayout role="student">
       <div className="space-y-6">
         <div>
@@ -51,7 +106,7 @@ export default function AddInternship() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(submitHandler)}>
           <Card>
             <CardHeader>
               <CardTitle>Internship Information</CardTitle>
@@ -62,40 +117,76 @@ export default function AddInternship() {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="company">Company Name</Label>
+                  <Label htmlFor="companyName">Company Name*</Label>
                   <Input
-                    id="company"
+                    id="companyName"
                     placeholder="e.g. TechCorp Inc."
                     required
+                    {...register("companyName")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="position">Position</Label>
+                  <Label htmlFor="companyEmail">Company Email</Label>
+                  <Input
+                    id="companyEmail"
+                    placeholder="e.g. info@gmail.com"
+                    {...register("companyEmail")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="position">Position*</Label>
                   <Input
                     id="position"
                     placeholder="e.g. Frontend Developer Intern"
                     required
+                    {...register("position")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="supervisor">Supervisor Name</Label>
+                  <Label htmlFor="department">Department*</Label>
+                  <Select
+                    required
+                    value={department}
+                    onValueChange={(value) => {
+                      setDepartment(value);
+                    }}
+                  >
+                    <SelectTrigger id="department">
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Engineering">Engineering</SelectItem>
+                      <SelectItem value="Product">Product</SelectItem>
+                      <SelectItem value="Design">Design</SelectItem>
+                      <SelectItem value="Marketing">Marketing</SelectItem>
+                      <SelectItem value="Sales">Sales</SelectItem>
+                      <SelectItem value="Finance">Finance</SelectItem>
+                      <SelectItem value="HR">Human Resources</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="supervisor">Supervisor Name*</Label>
                   <Input
                     id="supervisor"
                     placeholder="e.g. Dr. Sarah Johnson"
                     required
+                    {...register("supervisorName")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="supervisor-email">Supervisor Email</Label>
+                  <Label htmlFor="supervisor-email">Supervisor Email*</Label>
                   <Input
                     id="supervisor-email"
                     type="email"
                     placeholder="e.g. sarah.johnson@company.com"
                     required
+                    {...register("supervisorEmail")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Start Date</Label>
+                  <Label>Start Date*</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -144,42 +235,44 @@ export default function AddInternship() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="department">Department</Label>
-                <Select>
-                  <SelectTrigger id="department">
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="engineering">Engineering</SelectItem>
-                    <SelectItem value="product">Product</SelectItem>
-                    <SelectItem value="design">Design</SelectItem>
-                    <SelectItem value="marketing">Marketing</SelectItem>
-                    <SelectItem value="sales">Sales</SelectItem>
-                    <SelectItem value="finance">Finance</SelectItem>
-                    <SelectItem value="hr">Human Resources</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">Description*</Label>
                 <Textarea
                   id="description"
                   placeholder="Describe your internship role, responsibilities, and objectives..."
                   rows={5}
                   required
+                  {...register("description")}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="skills">Skills</Label>
+                <Label htmlFor="skills">Skills*</Label>
                 <Textarea
                   id="skills"
                   placeholder="List the skills you expect to develop during this internship..."
                   rows={3}
                   required
+                  {...register("skills")}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="status">Status of the Internship</Label>
+                <Select
+                  required
+                  value={status}
+                  onValueChange={(value) => {
+                    setStatus(value);
+                  }}
+                >
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Select Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="OnGoing">On Going</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">

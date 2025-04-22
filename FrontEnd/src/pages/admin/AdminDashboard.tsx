@@ -6,7 +6,6 @@ import {
   Layers,
   RefreshCw,
   Users,
-  XCircle,
   FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,84 +18,96 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MainLayout from "@/components/main-layout";
 import { NavLink } from "react-router-dom";
+import { useEffect, useState } from "react";
+import Spinner from "@/components/Spinner";
+import toast from "react-hot-toast";
+import { apiConnector } from "@/services/apiConnector";
+
+type Stats = {
+  users: {
+    total: number;
+    students: number;
+    supervisors: number;
+    admins: number;
+  };
+  internships: {
+    total: number;
+    ongoing: number;
+    completed: number;
+  };
+  colleges: number;
+  departments: number;
+};
+
+type RecentInternship = {
+  id: string;
+  student: string;
+  company: string;
+  position: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+};
+
+type DepartmentStats = {
+  name: string;
+  students: number;
+  internships: number;
+};
+
+type SystemMetrics = {
+  studentParticipationRate: number;
+  averageInternshipDuration: string;
+  taskCompletionRate: number;
+};
 
 export default function AdminDashboard() {
-  // Dummy data for the dashboard
-  const stats = {
-    users: {
-      total: 120,
-      students: 100,
-      supervisors: 15,
-      admins: 5,
-    },
-    internships: {
-      total: 85,
-      ongoing: 35,
-      completed: 50,
-    },
-    colleges: 4,
-    departments: 12,
-  };
+  const [loading, setLoading] = useState(true);
 
-  const recentInternships = [
-    {
-      id: "int-001",
-      student: "John Doe",
-      company: "TechCorp Inc.",
-      position: "Frontend Developer Intern",
-      status: "ongoing",
-      startDate: "2025-01-15",
-      endDate: "2025-06-15",
-    },
-    {
-      id: "int-004",
-      student: "Emily Johnson",
-      company: "CloudNet Systems",
-      position: "Backend Developer Intern",
-      status: "ongoing",
-      startDate: "2025-01-10",
-      endDate: "2025-07-10",
-    },
-    {
-      id: "int-005",
-      student: "Michael Smith",
-      company: "DataViz Analytics",
-      position: "Data Science Intern",
-      status: "ongoing",
-      startDate: "2025-02-01",
-      endDate: "2025-08-01",
-    },
-    {
-      id: "int-002",
-      student: "Sarah Williams",
-      company: "DataSys Solutions",
-      position: "Data Analyst Intern",
-      status: "completed",
-      startDate: "2024-06-01",
-      endDate: "2024-12-01",
-    },
-    {
-      id: "int-003",
-      student: "David Brown",
-      company: "InnovateTech",
-      position: "Software Engineering Intern",
-      status: "completed",
-      startDate: "2023-12-01",
-      endDate: "2024-05-01",
-    },
-  ];
+  const [stats, setStats] = useState<Stats>({} as Stats);
 
-  const collegeStats = [
-    { name: "College of Engineering", students: 45, internships: 38 },
-    { name: "School of Business", students: 30, internships: 25 },
-    { name: "College of Arts & Sciences", students: 15, internships: 12 },
-    { name: "School of Medicine", students: 10, internships: 10 },
-  ];
+  const [recentInternships, setRecentInternships] = useState<
+    RecentInternship[]
+  >([]);
 
-  return (
+  const [departmentStats, setDepartmentStats] = useState<DepartmentStats[]>([]);
+
+  const [systemMetrics, setSystemMetrics] = useState<SystemMetrics>(
+    {} as SystemMetrics
+  );
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const res = await apiConnector(
+          "GET",
+          `${import.meta.env.VITE_API_URL}/dashboard/admin`
+        );
+
+        if (!res.data.success) {
+          throw new Error(res.data.message);
+        }
+
+        setStats(res.data.stats);
+        setRecentInternships(res.data.recentInternships);
+        setDepartmentStats(res.data.departmentStats);
+        setSystemMetrics(res.data.systemMetrics);
+      } catch (error) {
+        toast.error("Failed to fetch data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  return loading ? (
+    <Spinner />
+  ) : (
     <MainLayout role="admin">
       <div className="space-y-6">
         <div>
@@ -171,80 +182,78 @@ export default function AdminDashboard() {
                   Overview of the latest internships
                 </CardDescription>
               </div>
-              <Tabs defaultValue="all" className="w-[200px]">
-                <TabsList className="grid grid-cols-3">
-                  <TabsTrigger value="all">All</TabsTrigger>
-                  <TabsTrigger value="ongoing">Ongoing</TabsTrigger>
-                  <TabsTrigger value="completed">Completed</TabsTrigger>
-                </TabsList>
-              </Tabs>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentInternships.map((internship) => (
-                  <div
-                    key={internship.id}
-                    className="flex items-center justify-between"
-                  >
-                    <div>
-                      <div className="font-medium">{internship.student}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {internship.position} at {internship.company}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(internship.startDate).toLocaleDateString()} -{" "}
-                        {new Date(internship.endDate).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="flex items-center">
-                      {internship.status === "ongoing" ? (
-                        <div className="flex items-center text-sm text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full">
-                          <RefreshCw className="mr-1 h-3 w-3" />
-                          Ongoing
-                        </div>
-                      ) : internship.status === "completed" ? (
-                        <div className="flex items-center text-sm text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full">
-                          <CheckCircle className="mr-1 h-3 w-3" />
-                          Completed
-                        </div>
-                      ) : (
-                        <div className="flex items-center text-sm text-red-600 bg-red-50 px-2.5 py-0.5 rounded-full">
-                          <XCircle className="mr-1 h-3 w-3" />
-                          Terminated
-                        </div>
-                      )}
-                    </div>
+                {recentInternships.length === 0 ? (
+                  <div className="text-center text-sm text-muted-foreground py-4">
+                    No recent internships available
                   </div>
-                ))}
+                ) : (
+                  recentInternships.map((internship) => (
+                    <div
+                      key={internship.id}
+                      className="flex items-center justify-between"
+                    >
+                      <div>
+                        <div className="font-medium">{internship.student}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {internship.position} at {internship.company}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(internship.startDate).toLocaleDateString()}{" "}
+                          - {new Date(internship.endDate).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div className="flex items-center">
+                        {internship.status === "OnGoing" ? (
+                          <div className="flex items-center text-sm text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full">
+                            <RefreshCw className="mr-1 h-3 w-3" />
+                            Ongoing
+                          </div>
+                        ) : (
+                          <div className="flex items-center text-sm text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full">
+                            <CheckCircle className="mr-1 h-3 w-3" />
+                            Completed
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
-            <CardFooter>
-              <Button variant="outline" className="w-full" asChild>
-                <NavLink to="/admin/internships">
-                  View All Internships <ArrowRight className="ml-2 h-4 w-4" />
-                </NavLink>
-              </Button>
-            </CardFooter>
+            {recentInternships.length > 0 && (
+              <CardFooter>
+                <Button variant="outline" className="w-full" asChild>
+                  <NavLink to="/admin/internships">
+                    View All Internships <ArrowRight className="ml-2 h-4 w-4" />
+                  </NavLink>
+                </Button>
+              </CardFooter>
+            )}
           </Card>
           <Card className="lg:col-span-3">
             <CardHeader>
-              <CardTitle>College Statistics</CardTitle>
+              <CardTitle>Department Internship Statistics</CardTitle>
               <CardDescription>
-                Internship distribution by college
+                Internship distribution by department
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {collegeStats.map((college) => (
-                  <div key={college.name} className="space-y-2">
+                {departmentStats.map((department) => (
+                  <div key={department.name} className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <div className="font-medium">{college.name}</div>
+                      <div className="font-medium">{department.name}</div>
                       <div className="text-sm text-muted-foreground">
-                        {college.internships}/{college.students} students
+                        {department.internships}/{department.students} students
                       </div>
                     </div>
                     <Progress
-                      value={(college.internships / college.students) * 100}
+                      value={
+                        (department.internships / department.students) * 100
+                      }
                       className="h-2"
                     />
                   </div>
@@ -325,7 +334,9 @@ export default function AdminDashboard() {
                       Students with at least one internship
                     </p>
                   </div>
-                  <div className="text-2xl font-bold">85%</div>
+                  <div className="text-2xl font-bold">
+                    {systemMetrics.studentParticipationRate}%
+                  </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
@@ -336,7 +347,9 @@ export default function AdminDashboard() {
                       Across all completed internships
                     </p>
                   </div>
-                  <div className="text-2xl font-bold">5.2 mo</div>
+                  <div className="text-2xl font-bold">
+                    {systemMetrics.averageInternshipDuration} mo
+                  </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
@@ -345,16 +358,9 @@ export default function AdminDashboard() {
                       Across all internships
                     </p>
                   </div>
-                  <div className="text-2xl font-bold">78%</div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">System Uptime</p>
-                    <p className="text-xs text-muted-foreground">
-                      Last 30 days
-                    </p>
+                  <div className="text-2xl font-bold">
+                    {systemMetrics.taskCompletionRate}%
                   </div>
-                  <div className="text-2xl font-bold">99.9%</div>
                 </div>
               </div>
             </CardContent>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,103 +11,66 @@ import {
 import { Input } from "@/components/ui/input";
 import MainLayout from "@/components/main-layout";
 import { NavLink } from "react-router-dom";
+import Spinner from "@/components/Spinner";
+import toast from "react-hot-toast";
+import { apiConnector } from "@/services/apiConnector";
+
+type Department = {
+  id: string;
+  name: string;
+  college: string;
+  students: number;
+  supervisors: number;
+  internships: number;
+};
 
 export default function AdminDepartments() {
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Dummy data for departments
-  const departments = [
-    {
-      id: "dep-001",
-      name: "Computer Science",
-      college: "College of Engineering",
-      students: 45,
-      supervisors: 8,
-      internships: 38,
-      status: "active",
-    },
-    {
-      id: "dep-002",
-      name: "Electrical Engineering",
-      college: "College of Engineering",
-      students: 35,
-      supervisors: 6,
-      internships: 30,
-      status: "active",
-    },
-    {
-      id: "dep-003",
-      name: "Mechanical Engineering",
-      college: "College of Engineering",
-      students: 40,
-      supervisors: 7,
-      internships: 32,
-      status: "active",
-    },
-    {
-      id: "dep-004",
-      name: "Marketing",
-      college: "School of Business",
-      students: 30,
-      supervisors: 5,
-      internships: 25,
-      status: "active",
-    },
-    {
-      id: "dep-005",
-      name: "Finance",
-      college: "School of Business",
-      students: 25,
-      supervisors: 4,
-      internships: 20,
-      status: "active",
-    },
-    {
-      id: "dep-006",
-      name: "Psychology",
-      college: "College of Arts & Sciences",
-      students: 15,
-      supervisors: 3,
-      internships: 12,
-      status: "active",
-    },
-    {
-      id: "dep-007",
-      name: "Biology",
-      college: "College of Arts & Sciences",
-      students: 20,
-      supervisors: 4,
-      internships: 15,
-      status: "active",
-    },
-    {
-      id: "dep-008",
-      name: "Medicine",
-      college: "School of Medicine",
-      students: 10,
-      supervisors: 4,
-      internships: 10,
-      status: "active",
-    },
-    {
-      id: "dep-009",
-      name: "Law",
-      college: "School of Law",
-      students: 0,
-      supervisors: 0,
-      internships: 0,
-      status: "inactive",
-    },
-  ];
-
-  // Filter departments based on search query
-  const filteredDepartments = departments.filter(
-    (department) =>
-      department.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      department.college.toLowerCase().includes(searchQuery.toLowerCase())
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filteredDepartments, setFilteredDepartments] = useState<Department[]>(
+    []
   );
 
-  return (
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const res = await apiConnector(
+          "GET",
+          `${import.meta.env.VITE_API_URL}/college/getFullDepartmentDetails`
+        );
+
+        if (!res.data.success) {
+          throw new Error(res.data.message);
+        }
+
+        setDepartments(res.data.data);
+        setFilteredDepartments(res.data.data);
+      } catch (error) {
+        toast.error("Failed to fetch departments");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDepartments();
+  }, []);
+
+  useEffect(() => {
+    const filtered = departments.filter(
+      (department) =>
+        department.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        department.college.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    setFilteredDepartments(filtered);
+  }, [searchQuery]);
+
+  return loading ? (
+    <Spinner />
+  ) : (
     <MainLayout role="admin">
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -161,15 +124,6 @@ export default function AdminDepartments() {
                       Students: {department.students}, Supervisors:{" "}
                       {department.supervisors}, Internships:{" "}
                       {department.internships}
-                    </p>
-                    <p
-                      className={`text-sm ${
-                        department.status === "active"
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      Status: {department.status}
                     </p>
                   </div>
                   <div className="flex gap-2 mt-4 md:mt-0">

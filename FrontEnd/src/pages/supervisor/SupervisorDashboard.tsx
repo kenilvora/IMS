@@ -20,104 +20,88 @@ import {
 import { Progress } from "@/components/ui/progress";
 import MainLayout from "@/components/main-layout";
 import { NavLink } from "react-router-dom";
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import Spinner from "@/components/Spinner";
+import { apiConnector } from "@/services/apiConnector";
+
+type Stats = {
+  students: number;
+  internships: {
+    total: number;
+    ongoing: number;
+    completed: number;
+  };
+  tasks: {
+    total: number;
+    completed: number;
+    pending: number;
+  };
+};
+
+type Internship = {
+  id: string;
+  student: string;
+  company: string;
+  position: string;
+  status: "OnGoing" | "Completed";
+  startDate: string;
+  endDate: string;
+  progress: number;
+  tasks: {
+    total: number;
+    completed: number;
+  };
+  approval: "Pending" | "Approved" | "Rejected";
+};
+
+type Task = {
+  id: string;
+  title: string;
+  student: string;
+  internship: string;
+  dueDate: string;
+  status: "Pending" | "Completed";
+};
 
 export default function SupervisorDashboard() {
   // Dummy data for the dashboard
-  const stats = {
-    students: 5,
-    internships: {
-      total: 8,
-      ongoing: 3,
-      completed: 5,
-    },
-    tasks: {
-      total: 42,
-      completed: 28,
-      pending: 14,
-    },
-  };
+  const [stats, setStats] = useState<Stats>({} as Stats);
 
-  const recentInternships = [
-    {
-      id: "int-001",
-      student: "John Doe",
-      company: "TechCorp Inc.",
-      position: "Frontend Developer Intern",
-      status: "ongoing",
-      startDate: "2025-01-15",
-      endDate: "2025-06-15",
-      progress: 45,
-      tasks: {
-        total: 8,
-        completed: 4,
-      },
-    },
-    {
-      id: "int-004",
-      student: "Emily Johnson",
-      company: "CloudNet Systems",
-      position: "Backend Developer Intern",
-      status: "ongoing",
-      startDate: "2025-01-10",
-      endDate: "2025-07-10",
-      progress: 30,
-      tasks: {
-        total: 10,
-        completed: 3,
-      },
-    },
-    {
-      id: "int-005",
-      student: "Michael Smith",
-      company: "DataViz Analytics",
-      position: "Data Science Intern",
-      status: "ongoing",
-      startDate: "2025-02-01",
-      endDate: "2025-08-01",
-      progress: 20,
-      tasks: {
-        total: 12,
-        completed: 2,
-      },
-    },
-  ];
+  const [recentInternships, setRecentInternships] = useState<Internship[]>([]);
 
-  const recentTasks = [
-    {
-      id: "task-005",
-      title: "Weekly Progress Report",
-      student: "John Doe",
-      internship: "TechCorp Inc.",
-      dueDate: "2025-02-28",
-      status: "pending",
-    },
-    {
-      id: "task-011",
-      title: "Database Schema Design",
-      student: "Emily Johnson",
-      internship: "CloudNet Systems",
-      dueDate: "2025-02-25",
-      status: "pending",
-    },
-    {
-      id: "task-012",
-      title: "API Integration",
-      student: "Emily Johnson",
-      internship: "CloudNet Systems",
-      dueDate: "2025-03-05",
-      status: "pending",
-    },
-    {
-      id: "task-013",
-      title: "Data Cleaning Script",
-      student: "Michael Smith",
-      internship: "DataViz Analytics",
-      dueDate: "2025-02-20",
-      status: "pending",
-    },
-  ];
+  const [recentTasks, setRecentTasks] = useState<Task[]>([]);
 
-  return (
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await apiConnector(
+          "GET",
+          `${import.meta.env.VITE_API_URL}/dashboard/supervisor`
+        );
+
+        if (!res.data.success) {
+          throw new Error(res.data.message);
+        }
+
+        setStats(res.data.stats);
+        setRecentInternships(res.data.internships);
+        setRecentTasks(res.data.tasks);
+      } catch (error) {
+        toast.error("Failed to fetch data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  return loading ? (
+    <Spinner />
+  ) : (
     <MainLayout role="supervisor">
       <div className="space-y-6">
         <div>
@@ -200,53 +184,62 @@ export default function SupervisorDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentInternships.map((internship) => (
-                  <div key={internship.id} className="flex flex-col space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">{internship.student}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {internship.position} at {internship.company}
+                {recentInternships.length === 0 ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <XCircle className="h-6 w-6 text-red-500" />
+                    <p className="text-sm text-muted-foreground">
+                      No ongoing internships
+                    </p>
+                  </div>
+                ) : (
+                  recentInternships.map((internship) => (
+                    <div
+                      key={internship.id}
+                      className="flex flex-col space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">
+                            {internship.student}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {internship.position} at {internship.company}
+                          </div>
+                        </div>
+                        <div className="flex items-center">
+                          {internship.status === "OnGoing" ? (
+                            <div className="flex items-center text-sm text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full">
+                              <RefreshCw className="mr-1 h-3 w-3" />
+                              Ongoing
+                            </div>
+                          ) : (
+                            <div className="flex items-center text-sm text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full">
+                              <CheckCircle className="mr-1 h-3 w-3" />
+                              Completed
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center">
-                        {internship.status === "ongoing" ? (
-                          <div className="flex items-center text-sm text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full">
-                            <RefreshCw className="mr-1 h-3 w-3" />
-                            Ongoing
-                          </div>
-                        ) : internship.status === "completed" ? (
-                          <div className="flex items-center text-sm text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full">
-                            <CheckCircle className="mr-1 h-3 w-3" />
-                            Completed
-                          </div>
-                        ) : (
-                          <div className="flex items-center text-sm text-red-600 bg-red-50 px-2.5 py-0.5 rounded-full">
-                            <XCircle className="mr-1 h-3 w-3" />
-                            Terminated
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="text-muted-foreground">
-                        {new Date(internship.startDate).toLocaleDateString()} -{" "}
-                        {new Date(internship.endDate).toLocaleDateString()}
-                      </div>
-                      <div className="text-muted-foreground">
-                        Tasks: {internship.tasks.completed}/
-                        {internship.tasks.total}
-                      </div>
-                    </div>
-                    <div className="space-y-1">
                       <div className="flex items-center justify-between text-sm">
-                        <div>Progress</div>
-                        <div>{internship.progress}%</div>
+                        <div className="text-muted-foreground">
+                          {new Date(internship.startDate).toLocaleDateString()}{" "}
+                          - {new Date(internship.endDate).toLocaleDateString()}
+                        </div>
+                        <div className="text-muted-foreground">
+                          Tasks: {internship.tasks.completed}/
+                          {internship.tasks.total}
+                        </div>
                       </div>
-                      <Progress value={internship.progress} className="h-2" />
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <div>Progress</div>
+                          <div>{internship.progress}%</div>
+                        </div>
+                        <Progress value={internship.progress} className="h-2" />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
             <CardFooter>
@@ -264,42 +257,51 @@ export default function SupervisorDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex items-start justify-between"
-                  >
-                    <div className="space-y-1">
-                      <p className="font-medium">{task.title}</p>
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Users className="mr-1 h-3 w-3" />
-                        {task.student}
-                      </div>
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Briefcase className="mr-1 h-3 w-3" />
-                        {task.internship}
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <div className="text-sm font-medium">
-                        {new Date(task.dueDate).toLocaleDateString()}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Due date
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="mt-2"
-                        asChild
-                      >
-                        <NavLink to={`/supervisor/tasks/${task.id}`}>
-                          Review
-                        </NavLink>
-                      </Button>
-                    </div>
+                {recentTasks.length === 0 ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <XCircle className="h-6 w-6 text-red-500" />
+                    <p className="text-sm text-muted-foreground">
+                      No recent tasks
+                    </p>
                   </div>
-                ))}
+                ) : (
+                  recentTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className="flex items-start justify-between"
+                    >
+                      <div className="space-y-1">
+                        <p className="font-medium">{task.title}</p>
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <Users className="mr-1 h-3 w-3" />
+                          {task.student}
+                        </div>
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <Briefcase className="mr-1 h-3 w-3" />
+                          {task.internship}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <div className="text-sm font-medium">
+                          {new Date(task.dueDate).toLocaleDateString()}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Due date
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mt-2"
+                          asChild
+                        >
+                          <NavLink to={`/supervisor/tasks/${task.id}`}>
+                            Review
+                          </NavLink>
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
             <CardFooter>

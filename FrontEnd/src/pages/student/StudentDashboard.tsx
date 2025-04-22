@@ -20,94 +20,82 @@ import {
 import { Progress } from "@/components/ui/progress";
 import MainLayout from "@/components/main-layout";
 import { NavLink } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { apiConnector } from "@/services/apiConnector";
+import Spinner from "@/components/Spinner";
+
+type recentInternshipType = {
+  id: string;
+  company: string;
+  position: string;
+  status: "OnGoing" | "Completed";
+  startDate: string;
+  endDate: string;
+  progress: number;
+  tasks: {
+    total: number;
+    completed: number;
+  };
+};
+
+type recentTaskType = {
+  id: string;
+  title: string;
+  internship: string;
+  dueDate: string;
+  status: "Pending" | "Completed";
+};
 
 export default function StudentDashboard() {
   // Dummy data for the dashboard
-  const stats = {
-    total: 3,
-    ongoing: 1,
-    completed: 2,
+
+  const [loading, setLoading] = useState(true);
+
+  const [stats, setStats] = useState({
+    total: 0,
+    ongoing: 0,
+    completed: 0,
     tasks: {
-      total: 12,
-      completed: 8,
-      pending: 4,
+      total: 0,
+      completed: 0,
+      pending: 0,
     },
-  };
+  });
 
-  const recentInternships = [
-    {
-      id: "int-001",
-      company: "TechCorp Inc.",
-      position: "Frontend Developer Intern",
-      status: "ongoing",
-      startDate: "2025-01-15",
-      endDate: "2025-06-15",
-      progress: 45,
-      tasks: {
-        total: 8,
-        completed: 4,
-      },
-    },
-    {
-      id: "int-002",
-      company: "DataSys Solutions",
-      position: "Data Analyst Intern",
-      status: "completed",
-      startDate: "2024-06-01",
-      endDate: "2024-12-01",
-      progress: 100,
-      tasks: {
-        total: 10,
-        completed: 10,
-      },
-    },
-    {
-      id: "int-003",
-      company: "InnovateTech",
-      position: "Software Engineering Intern",
-      status: "completed",
-      startDate: "2023-12-01",
-      endDate: "2024-05-01",
-      progress: 100,
-      tasks: {
-        total: 12,
-        completed: 12,
-      },
-    },
-  ];
+  const [recentInternships, setRecentInternships] = useState<
+    recentInternshipType[]
+  >([]);
 
-  const upcomingTasks = [
-    {
-      id: "task-001",
-      title: "Weekly Progress Report",
-      internship: "TechCorp Inc.",
-      dueDate: "2025-02-28",
-      status: "pending",
-    },
-    {
-      id: "task-002",
-      title: "Frontend Feature Implementation",
-      internship: "TechCorp Inc.",
-      dueDate: "2025-03-05",
-      status: "pending",
-    },
-    {
-      id: "task-003",
-      title: "Code Review Meeting",
-      internship: "TechCorp Inc.",
-      dueDate: "2025-03-10",
-      status: "pending",
-    },
-    {
-      id: "task-004",
-      title: "UI/UX Design Feedback",
-      internship: "TechCorp Inc.",
-      dueDate: "2025-03-15",
-      status: "pending",
-    },
-  ];
+  const [recenetTasks, setRecentTasks] = useState<recentTaskType[]>([]);
 
-  return (
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await apiConnector(
+          "GET",
+          `${import.meta.env.VITE_API_URL}/dashboard/student`
+        );
+
+        if (!res.data.success) {
+          throw new Error(res.data.message);
+        }
+
+        setStats(res.data.data[0].cardStats);
+        setRecentInternships(res.data.data[0].internshipDetails);
+        setRecentTasks(res.data.data[0].taskDetails);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  return loading ? (
+    <Spinner />
+  ) : (
     <MainLayout role="student">
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -135,7 +123,7 @@ export default function StudentDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{stats.total}</div>
               <p className="text-xs text-muted-foreground">
-                Across {recentInternships.length} different companies
+                Across {recentInternships.length || 0} different companies
               </p>
             </CardContent>
           </Card>
@@ -189,101 +177,126 @@ export default function StudentDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentInternships.map((internship) => (
-                  <div key={internship.id} className="flex flex-col space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">{internship.company}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {internship.position}
+                {recentInternships && recentInternships.length === 0 ? (
+                  <div className="flex items-center justify-center h-32">
+                    <p className="text-sm text-muted-foreground">
+                      No internships found.
+                    </p>
+                  </div>
+                ) : (
+                  recentInternships.map((internship) => (
+                    <div
+                      key={internship.id}
+                      className="flex flex-col space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">
+                            {internship.company}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {internship.position}
+                          </div>
+                        </div>
+                        <div className="flex items-center">
+                          {internship.status === "OnGoing" ? (
+                            <div className="flex items-center text-sm text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full">
+                              <RefreshCw className="mr-1 h-3 w-3" />
+                              Ongoing
+                            </div>
+                          ) : internship.status === "Completed" ? (
+                            <div className="flex items-center text-sm text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full">
+                              <CheckCircle className="mr-1 h-3 w-3" />
+                              Completed
+                            </div>
+                          ) : (
+                            <div className="flex items-center text-sm text-red-600 bg-red-50 px-2.5 py-0.5 rounded-full">
+                              <XCircle className="mr-1 h-3 w-3" />
+                              Terminated
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center">
-                        {internship.status === "ongoing" ? (
-                          <div className="flex items-center text-sm text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full">
-                            <RefreshCw className="mr-1 h-3 w-3" />
-                            Ongoing
-                          </div>
-                        ) : internship.status === "completed" ? (
-                          <div className="flex items-center text-sm text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full">
-                            <CheckCircle className="mr-1 h-3 w-3" />
-                            Completed
-                          </div>
-                        ) : (
-                          <div className="flex items-center text-sm text-red-600 bg-red-50 px-2.5 py-0.5 rounded-full">
-                            <XCircle className="mr-1 h-3 w-3" />
-                            Terminated
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="text-muted-foreground">
-                        {new Date(internship.startDate).toLocaleDateString()} -{" "}
-                        {new Date(internship.endDate).toLocaleDateString()}
-                      </div>
-                      <div className="text-muted-foreground">
-                        Tasks: {internship.tasks.completed}/
-                        {internship.tasks.total}
-                      </div>
-                    </div>
-                    <div className="space-y-1">
                       <div className="flex items-center justify-between text-sm">
-                        <div>Progress</div>
-                        <div>{internship.progress}%</div>
+                        <div className="text-muted-foreground">
+                          {new Date(internship.startDate).toLocaleDateString()}{" "}
+                          - {new Date(internship.endDate).toLocaleDateString()}
+                        </div>
+                        <div className="text-muted-foreground">
+                          Tasks: {internship.tasks.completed}/
+                          {internship.tasks.total}
+                        </div>
                       </div>
-                      <Progress value={internship.progress} className="h-2" />
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <div>Progress</div>
+                          <div>{internship.progress}%</div>
+                        </div>
+                        <Progress value={internship.progress} className="h-2" />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
-            <CardFooter>
-              <Button variant="outline" className="w-full" asChild>
-                <NavLink to="/student/internships">
-                  View All Internships <ArrowRight className="ml-2 h-4 w-4" />
-                </NavLink>
-              </Button>
-            </CardFooter>
+            {recentInternships && recentInternships.length > 0 && (
+              <CardFooter>
+                <Button variant="outline" className="w-full" asChild>
+                  <NavLink to="/student/internships">
+                    View All Internships <ArrowRight className="ml-2 h-4 w-4" />
+                  </NavLink>
+                </Button>
+              </CardFooter>
+            )}
           </Card>
           <Card className="lg:col-span-3">
             <CardHeader>
-              <CardTitle>Upcoming Tasks</CardTitle>
-              <CardDescription>Tasks that need your attention</CardDescription>
+              <CardTitle>Recent Tasks</CardTitle>
+              <CardDescription>Overview of your recent tasks</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {upcomingTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex items-start justify-between"
-                  >
-                    <div className="space-y-1">
-                      <p className="font-medium">{task.title}</p>
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Briefcase className="mr-1 h-3 w-3" />
-                        {task.internship}
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <div className="text-sm font-medium">
-                        {new Date(task.dueDate).toLocaleDateString()}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Due date
-                      </div>
-                    </div>
+                {recenetTasks && recenetTasks.length === 0 ? (
+                  <div className="flex items-center justify-center h-32">
+                    <p className="text-sm text-muted-foreground">
+                      No tasks found.
+                    </p>
                   </div>
-                ))}
+                ) : (
+                  recenetTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className="flex items-start justify-between"
+                    >
+                      <div className="space-y-1">
+                        <p className="font-medium">{task.title}</p>
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <Briefcase className="mr-1 h-3 w-3" />
+                          {task.internship}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <div className="text-sm font-medium">
+                          {new Date(task.dueDate).toLocaleDateString()}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Due date
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
-            <CardFooter>
-              <Button variant="outline" className="w-full" asChild>
-                <NavLink to="/student/tasks">
-                  View All Tasks <ArrowRight className="ml-2 h-4 w-4" />
-                </NavLink>
-              </Button>
-            </CardFooter>
+            {recenetTasks && recenetTasks.length > 0 && (
+              <CardFooter>
+                <Button variant="outline" className="w-full" asChild>
+                  <NavLink to="/student/tasks">
+                    View All Tasks <ArrowRight className="ml-2 h-4 w-4" />
+                  </NavLink>
+                </Button>
+              </CardFooter>
+            )}
           </Card>
         </div>
       </div>

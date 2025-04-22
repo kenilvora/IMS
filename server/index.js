@@ -4,6 +4,7 @@ import { dbConnect } from "./config/database.js";
 import userRoutes from "./routes/userRoute.js";
 import internshipRoutes from "./routes/internshipRoute.js";
 import collegeRoutes from "./routes/collegeRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
 import dotenv from "dotenv";
 import cors from "cors";
 import { cloudinaryConnect } from "./config/cloudinary.js";
@@ -34,6 +35,7 @@ cloudinaryConnect();
 app.use("/api/v1/auth", userRoutes);
 app.use("/api/v1/internship", internshipRoutes);
 app.use("/api/v1/college", collegeRoutes);
+app.use("/api/v1/dashboard", dashboardRoutes);
 
 const port = process.env.PORT || 4000;
 

@@ -92,6 +92,7 @@ export default function EditUser() {
                         <Label htmlFor="student-first-name">First Name</Label>
                         <Input
                           id="student-first-name"
+                          type="text"
                           defaultValue={user.firstName}
                           required
                         />
@@ -100,6 +101,7 @@ export default function EditUser() {
                         <Label htmlFor="student-last-name">Last Name</Label>
                         <Input
                           id="student-last-name"
+                          type="text"
                           defaultValue={user.lastName}
                           required
                         />

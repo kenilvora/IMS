@@ -6,6 +6,16 @@ const collegeDetails = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  code: {
+    type: String,
+    required: true,
+    trim: true,
+    unique: true,
+  },
+  dean: {
+    type: String,
+    trim: true,
+  },
   email: {
     type: String,
     required: true,
@@ -23,6 +33,15 @@ const collegeDetails = new mongoose.Schema({
       ref: "Department",
     },
   ],
+  address: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  website: {
+    type: String,
+    trim: true,
+  },
 });
 
 export default mongoose.model("CollegeDetails", collegeDetails);

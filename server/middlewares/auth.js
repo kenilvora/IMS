@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import User from "../models/User.js";
 
 export const auth = async (req, res, next) => {
   try {
@@ -13,6 +14,23 @@ export const auth = async (req, res, next) => {
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      if (!decoded) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid token",
+        });
+      }
+
+      const user = await User.findById(decoded.userId);
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
       req.user = decoded;
 
       next();
@@ -70,6 +88,24 @@ export const isSupervisor = async (req, res, next) => {
 export const isAdmin = async (req, res, next) => {
   try {
     if (req.user.role !== "Admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized Access",
+      });
+    }
+    next();
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+export const isAdminOrSupervisor = async (req, res, next) => {
+  try {
+    if (req.user.role !== "Admin" && req.user.role !== "Supervisor") {
       return res.status(403).json({
         success: false,
         message: "Unauthorized Access",

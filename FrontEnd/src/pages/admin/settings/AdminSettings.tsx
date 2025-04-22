@@ -88,6 +88,7 @@ export default function AdminSettings() {
                       <Input
                         id="system-name"
                         defaultValue="Internship Management System"
+                        type="text"
                         required
                       />
                     </div>
@@ -96,6 +97,7 @@ export default function AdminSettings() {
                       <Input
                         id="institution-name"
                         defaultValue="University Name"
+                        
                         required
                       />
                     </div>

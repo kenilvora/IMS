@@ -18,11 +18,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Textarea } from "@/components/ui/textarea";
-import { format } from "date-fns";
-import MainLayout from "@/components/main-layout";
-import { useNavigate, useParams } from "react-router-dom";
-import Spinner from "@/components/Spinner";
 import {
   Select,
   SelectContent,
@@ -30,66 +25,83 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { format } from "date-fns";
+import MainLayout from "@/components/main-layout";
+import { useNavigate } from "react-router-dom";
 import { apiConnector } from "@/services/apiConnector";
 import toast from "react-hot-toast";
+import Spinner from "@/components/Spinner";
 
-export default function EditTask() {
+type Internship = {
+  id: string;
+  company: string;
+  position: string;
+};
+
+export default function AddTask() {
   const navigate = useNavigate();
-  const params = useParams();
-  const internshipId = params.internshipId as string;
-  const taskId = params.taskId as string;
-
   const [deadLine, setDeadLine] = useState<Date>();
 
   const [loading, setLoading] = useState(true);
+
+  const [internships, setInternships] = useState<Internship[]>([]);
 
   const [taskData, setTaskData] = useState({
     title: "",
     description: "",
     status: "",
+    internshipId: "",
   });
 
   useEffect(() => {
-    const fetchTaskDetails = async () => {
-      setLoading(true);
+    const fetchInternships = async () => {
       try {
         const res = await apiConnector(
           "GET",
-          `${
-            import.meta.env.VITE_API_URL
-          }/internship/getTask/${internshipId}/${taskId}`
+          `${import.meta.env.VITE_API_URL}/internship/getAllInternships`
         );
 
         if (!res.data.success) {
           throw new Error(res.data.message);
         }
 
-        const task = res.data.data;
-
-        setTaskData({
-          title: task.title,
-          description: task.description,
-          status: task.status,
-        });
-        setDeadLine(new Date(task.dueDate));
+        setInternships(res.data.data);
       } catch (error) {
-        toast.error("Failed to fetch task details");
+        toast.error("Failed to fetch internships");
       } finally {
         setLoading(false);
       }
     };
-    fetchTaskDetails();
+
+    fetchInternships();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!taskData.internshipId) {
+      toast.error("Please select an internship");
+      return;
+    }
+
+    if (!deadLine) {
+      toast.error("Please select a deadline");
+      return;
+    }
+
+    if (!taskData.status) {
+      toast.error("Please select a status");
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await apiConnector(
-        "PUT",
-        `${
-          import.meta.env.VITE_API_URL
-        }/internship/updateTask/${internshipId}/${taskId}`,
+        "POST",
+        `${import.meta.env.VITE_API_URL}/internship/addTask/${
+          taskData.internshipId
+        }`,
         {
           ...taskData,
           deadline: deadLine,
@@ -99,10 +111,10 @@ export default function EditTask() {
       if (!res.data.success) {
         throw new Error(res.data.message);
       }
-      toast.success("Task updated successfully");
-      navigate(-1);
+      toast.success("Task added successfully");
+      navigate("/student/tasks");
     } catch (error) {
-      const errMsg = (error as any).response?.data?.message;
+      const errMsg = (error as any).response.data.message;
       toast.error(errMsg);
     } finally {
       setLoading(false);
@@ -115,9 +127,9 @@ export default function EditTask() {
     <MainLayout role="student">
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Edit Task</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Add Task</h1>
           <p className="text-muted-foreground">
-            Update the details of your task
+            Enter the details of your new task
           </p>
         </div>
 
@@ -162,6 +174,31 @@ export default function EditTask() {
                     }));
                   }}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="internshipDetail">Internship Details*</Label>
+                <Select
+                  required
+                  value={taskData.internshipId}
+                  onValueChange={(value) => {
+                    setTaskData((prev) => ({
+                      ...prev,
+                      internshipId: value,
+                    }));
+                  }}
+                >
+                  <SelectTrigger id="internshipDetail">
+                    <SelectValue placeholder="Select Internship" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {internships.map((internship) => (
+                      <SelectItem key={internship.id} value={internship.id}>
+                        {`${internship.company} - ${internship.position}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -218,7 +255,7 @@ export default function EditTask() {
               >
                 Cancel
               </Button>
-              <Button type="submit">Update Task</Button>
+              <Button type="submit">Add Task</Button>
             </CardFooter>
           </Card>
         </form>

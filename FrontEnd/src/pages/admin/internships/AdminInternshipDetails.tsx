@@ -5,12 +5,12 @@ import {
   Calendar,
   CheckCircle,
   Clock,
+  Download,
   FileText,
   GraduationCap,
   Mail,
+  MapPin,
   RefreshCw,
-  ThumbsDown,
-  ThumbsUp,
   User,
   XCircle,
 } from "lucide-react";
@@ -19,6 +19,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -34,136 +35,143 @@ import {
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import MainLayout from "@/components/main-layout";
-import { NavLink, useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
-import Spinner from "@/components/Spinner";
-import { apiConnector } from "@/services/apiConnector";
-import toast from "react-hot-toast";
-import { MdPendingActions } from "react-icons/md";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { NavLink } from "react-router-dom";
 
-type Internship = {
-  id: string;
-  student: {
-    id: string;
-    name: string;
-    email: string;
-    phone: string;
-    image: string;
-    department: string;
-    year: string;
-  };
-  company: string;
-  position: string;
-  department: string;
-  status: "OnGoing" | "Completed";
-  startDate: string;
-  endDate: string;
-  progress: number;
-  description: string;
-  skills: string;
-  tasks: {
-    total: number;
-    completed: number;
-  };
-  approval: "Pending" | "Approved" | "Rejected";
-};
-
-type Task = {
-  id: string;
-  title: string;
-  description: string;
-  dueDate: string;
-  status: "Pending" | "Completed";
-};
-
-export default function SupervisorInternshipDetails() {
-  const params = useParams();
-  const internshipId = params.id as string;
-
-  const [internship, setInternship] = useState<Internship>({} as Internship);
-
-  const [tasks, setTasks] = useState<Task[]>([]);
-
-  const [loading, setLoading] = useState(true);
-
-  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
-  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
-
-  const fetchInternshipDetails = async () => {
-    setLoading(true);
-    try {
-      const res = await apiConnector(
-        "GET",
-        `${
-          import.meta.env.VITE_API_URL
-        }/internship/getInternshipForAdminAndSupervisor/${internshipId}`
-      );
-
-      if (!res.data.success) {
-        throw new Error(res.data.message);
-      }
-
-      setInternship(res.data.internship);
-      setTasks(res.data.tasks);
-    } catch (error) {
-      toast.error("Failed to fetch internship details");
-    } finally {
-      setLoading(false);
-    }
+export default function AdminInternshipDetails() {
+  // Dummy data for the internship details
+  const internship = {
+    id: "int-001",
+    student: {
+      id: "user-001",
+      name: "John Doe",
+      email: "john.doe@university.edu",
+      phone: "+1 (555) 123-4567",
+      department: "Computer Science",
+      year: "3rd Year",
+    },
+    company: "TechCorp Inc.",
+    position: "Frontend Developer Intern",
+    department: "Engineering",
+    location: "San Francisco, CA",
+    status: "ongoing",
+    startDate: "2025-01-15",
+    endDate: "2025-06-15",
+    progress: 45,
+    description:
+      "Working on the frontend development team to build responsive and accessible user interfaces for the company's main product. Responsibilities include implementing UI components, fixing bugs, and collaborating with designers and backend developers.",
+    skills: "React, TypeScript, CSS, Accessibility, Git, Agile methodologies",
+    tasks: {
+      total: 8,
+      completed: 4,
+    },
   };
 
-  useEffect(() => {
-    fetchInternshipDetails();
-  }, []);
-
-  const handleApproveInternship = async (approval: "Approved" | "Rejected") => {
-    setLoading(true);
-    try {
-      const res = await apiConnector(
-        "PUT",
-        `${
-          import.meta.env.VITE_API_URL
-        }/internship/updateApproval/${internshipId}`,
+  // Dummy data for tasks
+  const tasks = [
+    {
+      id: "task-001",
+      title: "Onboarding and Environment Setup",
+      description:
+        "Set up development environment, get familiar with the codebase, and complete onboarding tasks.",
+      dueDate: "2025-01-20",
+      status: "completed",
+      comments: [
         {
-          approval,
-        }
-      );
+          author: "Dr. Sarah Johnson",
+          date: "2025-01-21",
+          text: "Great job setting up quickly. Let me know if you have any questions about the codebase.",
+        },
+      ],
+    },
+    {
+      id: "task-002",
+      title: "UI Component Implementation",
+      description:
+        "Implement the new dashboard card components as per the design specifications.",
+      dueDate: "2025-02-05",
+      status: "completed",
+      comments: [
+        {
+          author: "Dr. Sarah Johnson",
+          date: "2025-02-06",
+          text: "The components look great and match the design perfectly. Good work on making them responsive.",
+        },
+      ],
+    },
+    {
+      id: "task-003",
+      title: "Bug Fixes for Mobile View",
+      description: "Fix reported bugs in the mobile view of the application.",
+      dueDate: "2025-02-20",
+      status: "completed",
+      comments: [
+        {
+          author: "Dr. Sarah Johnson",
+          date: "2025-02-21",
+          text: "All bugs have been fixed successfully. Your attention to detail is impressive.",
+        },
+      ],
+    },
+    {
+      id: "task-004",
+      title: "Accessibility Improvements",
+      description:
+        "Improve accessibility of the application by implementing ARIA attributes and keyboard navigation.",
+      dueDate: "2025-03-10",
+      status: "completed",
+      comments: [
+        {
+          author: "Dr. Sarah Johnson",
+          date: "2025-03-11",
+          text: "Great improvements to accessibility. The application is now much more usable for everyone.",
+        },
+      ],
+    },
+    {
+      id: "task-005",
+      title: "Weekly Progress Report",
+      description:
+        "Submit a weekly progress report detailing tasks completed, challenges faced, and plans for the next week.",
+      dueDate: "2025-02-28",
+      status: "pending",
+      comments: [],
+    },
+    {
+      id: "task-006",
+      title: "Frontend Feature Implementation",
+      description:
+        "Implement the new user profile page with edit functionality.",
+      dueDate: "2025-03-05",
+      status: "pending",
+      comments: [],
+    },
+    {
+      id: "task-007",
+      title: "Code Review Meeting",
+      description:
+        "Participate in the code review meeting to discuss your implementations and receive feedback.",
+      dueDate: "2025-03-10",
+      status: "pending",
+      comments: [],
+    },
+    {
+      id: "task-008",
+      title: "UI/UX Design Feedback",
+      description:
+        "Provide feedback on the new design mockups for the upcoming features.",
+      dueDate: "2025-03-15",
+      status: "pending",
+      comments: [],
+    },
+  ];
 
-      if (!res.data.success) {
-        throw new Error(res.data.message);
-      }
-
-      const msg = res.data.message;
-
-      toast.success(msg);
-    } catch (error) {
-      const errMsg = (error as any).response?.data?.message;
-      toast.error(errMsg);
-    } finally {
-      setIsApproveDialogOpen(false);
-      setIsRejectDialogOpen(false);
-      fetchInternshipDetails();
-    }
-  };
-
-  return loading ? (
-    <Spinner />
-  ) : (
-    <MainLayout role="supervisor">
+  return (
+    <MainLayout role="admin">
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" asChild>
-              <NavLink to="/supervisor/internships">
+              <NavLink to="/admin/internships">
                 <ArrowLeft className="h-4 w-4" />
                 <span className="sr-only">Back</span>
               </NavLink>
@@ -175,97 +183,13 @@ export default function SupervisorInternshipDetails() {
               <p className="text-muted-foreground">{internship.company}</p>
             </div>
           </div>
-          {internship.approval === "Pending" && (
-            <div className="flex flex-wrap gap-2">
-              <Dialog
-                open={isApproveDialogOpen}
-                onOpenChange={setIsApproveDialogOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button>
-                    <ThumbsUp className="mr-2 h-4 w-4" /> Approve Internship
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Approve Internship</DialogTitle>
-                    <DialogDescription>
-                      Are you sure you want to approve this internship? This
-                      will mark the internship as approved and notify the
-                      student.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsApproveDialogOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button onClick={() => handleApproveInternship("Approved")}>
-                      Approve
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-
-              <Dialog
-                open={isRejectDialogOpen}
-                onOpenChange={setIsRejectDialogOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button variant="outline">
-                    <ThumbsDown className="mr-2 h-4 w-4" /> Reject Internship
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Reject Internship</DialogTitle>
-                    <DialogDescription>
-                      Are you sure you want to reject this internship? This will
-                      mark the internship as rejected and notify the student.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsRejectDialogOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button onClick={() => handleApproveInternship("Rejected")}>
-                      Reject
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-          )}
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
           <div className="md:col-span-2 space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  Internship Details
-                  {internship.approval === "Pending" ? (
-                    <div className="flex items-center text-sm text-yellow-600 bg-yellow-50 px-2.5 py-1.5 rounded-full w-fit">
-                      <MdPendingActions className="mr-1 h-3 w-3" />
-                      Pending Approval by You
-                    </div>
-                  ) : internship.approval === "Approved" ? (
-                    <div className="flex items-center text-sm text-green-600 bg-green-50 px-2.5 py-1.5 rounded-full w-fit">
-                      <CheckCircle className="mr-1 h-3 w-3" />
-                      Approved by You
-                    </div>
-                  ) : (
-                    <div className="flex items-center text-sm text-red-600 bg-red-50 px-2.5 py-1.5 rounded-full w-fit">
-                      <XCircle className="mr-1 h-3 w-3" />
-                      Rejected by You
-                    </div>
-                  )}
-                </CardTitle>
+                <CardTitle>Internship Details</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -314,16 +238,13 @@ export default function SupervisorInternshipDetails() {
                     <TabsTrigger value="Completed">Completed</TabsTrigger>
                   </TabsList>
                   <TabsContent value="all">
-                    <div className="rounded-md border">
+                    <div className="rounded-md border max-h-[calc(100vh-340px)] overflow-y-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
                             <TableHead>Title</TableHead>
                             <TableHead>Due Date</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead className="text-right">
-                              Actions
-                            </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -339,7 +260,7 @@ export default function SupervisorInternshipDetails() {
                                 {new Date(task.dueDate).toLocaleDateString()}
                               </TableCell>
                               <TableCell>
-                                {task.status === "Completed" ? (
+                                {task.status === "completed" ? (
                                   <div className="flex items-center text-sm text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full w-fit">
                                     <CheckCircle className="mr-1 h-3 w-3" />
                                     Completed
@@ -351,13 +272,6 @@ export default function SupervisorInternshipDetails() {
                                   </div>
                                 )}
                               </TableCell>
-                              <TableCell className="text-right">
-                                <Button variant="ghost" size="sm" asChild>
-                                  <NavLink to={`/supervisor/tasks/${task.id}`}>
-                                    Review
-                                  </NavLink>
-                                </Button>
-                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -365,21 +279,18 @@ export default function SupervisorInternshipDetails() {
                     </div>
                   </TabsContent>
                   <TabsContent value="Pending">
-                    <div className="rounded-md border">
+                    <div className="rounded-md border max-h-[calc(100vh-340px)] overflow-y-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
                             <TableHead>Title</TableHead>
                             <TableHead>Due Date</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead className="text-right">
-                              Actions
-                            </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {tasks
-                            .filter((task) => task.status === "Pending")
+                            .filter((task) => task.status === "pending")
                             .map((task) => (
                               <TableRow key={task.id}>
                                 <TableCell>
@@ -399,15 +310,6 @@ export default function SupervisorInternshipDetails() {
                                     Pending
                                   </div>
                                 </TableCell>
-                                <TableCell className="text-right">
-                                  <Button variant="ghost" size="sm" asChild>
-                                    <NavLink
-                                      to={`/supervisor/tasks/${task.id}`}
-                                    >
-                                      Review
-                                    </NavLink>
-                                  </Button>
-                                </TableCell>
                               </TableRow>
                             ))}
                         </TableBody>
@@ -415,21 +317,18 @@ export default function SupervisorInternshipDetails() {
                     </div>
                   </TabsContent>
                   <TabsContent value="Completed">
-                    <div className="rounded-md border">
+                    <div className="rounded-md border max-h-[calc(100vh-340px)] overflow-y-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
                             <TableHead>Title</TableHead>
                             <TableHead>Due Date</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead className="text-right">
-                              Actions
-                            </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {tasks
-                            .filter((task) => task.status === "Completed")
+                            .filter((task) => task.status === "completed")
                             .map((task) => (
                               <TableRow key={task.id}>
                                 <TableCell>
@@ -448,15 +347,6 @@ export default function SupervisorInternshipDetails() {
                                     <CheckCircle className="mr-1 h-3 w-3" />
                                     Completed
                                   </div>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Button variant="ghost" size="sm" asChild>
-                                    <NavLink
-                                      to={`/supervisor/tasks/${task.id}`}
-                                    >
-                                      Review
-                                    </NavLink>
-                                  </Button>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -477,12 +367,12 @@ export default function SupervisorInternshipDetails() {
               <CardContent>
                 <div className="flex flex-col items-center mb-6">
                   <Avatar className="h-20 w-20 mb-4">
-                    <AvatarImage
-                      src={internship.student.image}
-                      alt={internship.student.name}
-                    />
+                    <AvatarImage src={`/placeholder.svg?height=80&width=80`} />
                     <AvatarFallback>
-                      {internship.student.name.charAt(0)}
+                      {internship.student.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
                     </AvatarFallback>
                   </Avatar>
                   <div className="text-center">
@@ -533,6 +423,13 @@ export default function SupervisorInternshipDetails() {
                   </div>
                 </div>
               </CardContent>
+              <CardFooter>
+                <Button variant="outline" className="w-full" asChild>
+                  <NavLink to={`/admin/users/${internship.student.id}`}>
+                    View Student Profile
+                  </NavLink>
+                </Button>
+              </CardFooter>
             </Card>
 
             <Card>
@@ -569,6 +466,15 @@ export default function SupervisorInternshipDetails() {
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <div className="font-medium">Location</div>
+                      <div className="text-sm text-muted-foreground">
+                        {internship.location}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <div>
                       <div className="font-medium">Duration</div>
@@ -579,18 +485,20 @@ export default function SupervisorInternshipDetails() {
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
-                    {internship.status === "OnGoing" ? (
+                    {internship.status === "ongoing" ? (
                       <RefreshCw className="h-4 w-4 text-blue-600 mt-0.5" />
-                    ) : (
+                    ) : internship.status === "completed" ? (
                       <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-red-600 mt-0.5" />
                     )}
                     <div>
                       <div className="font-medium">Status</div>
                       <div
                         className={`text-sm ${
-                          internship.status === "OnGoing"
+                          internship.status === "ongoing"
                             ? "text-blue-600"
-                            : internship.status === "Completed"
+                            : internship.status === "completed"
                             ? "text-green-600"
                             : "text-red-600"
                         }`}
@@ -600,6 +508,28 @@ export default function SupervisorInternshipDetails() {
                       </div>
                     </div>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Documents</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Button variant="outline" className="w-full justify-start">
+                    <Download className="mr-2 h-4 w-4" />
+                    Internship Agreement
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    <Download className="mr-2 h-4 w-4" />
+                    Project Brief
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    <Download className="mr-2 h-4 w-4" />
+                    Evaluation Form
+                  </Button>
                 </div>
               </CardContent>
             </Card>

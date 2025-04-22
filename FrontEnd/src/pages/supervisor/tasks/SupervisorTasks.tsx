@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   ArrowUpDown,
@@ -41,148 +41,90 @@ import {
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import MainLayout from "@/components/main-layout";
-import { NavLink } from "react-router-dom";
+import toast from "react-hot-toast";
+import { apiConnector } from "@/services/apiConnector";
+import Spinner from "@/components/Spinner";
+
+type Task = {
+  id: string;
+  title: string;
+  description: string;
+  student: {
+    id: string;
+    name: string;
+    email: string;
+    image: string;
+  };
+  internship: {
+    id: string;
+    company: string;
+  };
+  dueDate: string;
+  status: "Pending" | "Completed";
+};
 
 export default function SupervisorTasks() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // Dummy data for tasks
-  const tasks = [
-    {
-      id: "task-005",
-      title: "Weekly Progress Report",
-      description:
-        "Submit a weekly progress report detailing tasks completed, challenges faced, and plans for the next week.",
-      student: {
-        id: "user-001",
-        name: "John Doe",
-        email: "john.doe@university.edu",
-      },
-      internship: {
-        id: "int-001",
-        company: "TechCorp Inc.",
-      },
-      dueDate: "2025-02-28",
-      status: "pending",
-    },
-    {
-      id: "task-006",
-      title: "Frontend Feature Implementation",
-      description:
-        "Implement the new user profile page with edit functionality.",
-      student: {
-        id: "user-001",
-        name: "John Doe",
-        email: "john.doe@university.edu",
-      },
-      internship: {
-        id: "int-001",
-        company: "TechCorp Inc.",
-      },
-      dueDate: "2025-03-05",
-      status: "pending",
-    },
-    {
-      id: "task-011",
-      title: "Database Schema Design",
-      description:
-        "Design the database schema for the new user management system.",
-      student: {
-        id: "user-002",
-        name: "Emily Johnson",
-        email: "emily.johnson@university.edu",
-      },
-      internship: {
-        id: "int-004",
-        company: "CloudNet Systems",
-      },
-      dueDate: "2025-02-25",
-      status: "pending",
-    },
-    {
-      id: "task-012",
-      title: "API Integration",
-      description: "Integrate the payment gateway API with the backend system.",
-      student: {
-        id: "user-002",
-        name: "Emily Johnson",
-        email: "emily.johnson@university.edu",
-      },
-      internship: {
-        id: "int-004",
-        company: "CloudNet Systems",
-      },
-      dueDate: "2025-03-05",
-      status: "pending",
-    },
-    {
-      id: "task-013",
-      title: "Data Cleaning Script",
-      description:
-        "Write a script to clean and preprocess the customer data for analysis.",
-      student: {
-        id: "user-003",
-        name: "Michael Smith",
-        email: "michael.smith@university.edu",
-      },
-      internship: {
-        id: "int-005",
-        company: "DataViz Analytics",
-      },
-      dueDate: "2025-02-20",
-      status: "pending",
-    },
-    {
-      id: "task-001",
-      title: "Onboarding and Environment Setup",
-      description:
-        "Set up development environment, get familiar with the codebase, and complete onboarding tasks.",
-      student: {
-        id: "user-001",
-        name: "John Doe",
-        email: "john.doe@university.edu",
-      },
-      internship: {
-        id: "int-001",
-        company: "TechCorp Inc.",
-      },
-      dueDate: "2025-01-20",
-      status: "completed",
-    },
-    {
-      id: "task-002",
-      title: "UI Component Implementation",
-      description:
-        "Implement the new dashboard card components as per the design specifications.",
-      student: {
-        id: "user-001",
-        name: "John Doe",
-        email: "john.doe@university.edu",
-      },
-      internship: {
-        id: "int-001",
-        company: "TechCorp Inc.",
-      },
-      dueDate: "2025-02-05",
-      status: "completed",
-    },
-  ];
+  const [tasks, setTasks] = useState<Task[]>([]);
 
-  // Filter tasks based on status and search query
-  const filteredTasks = tasks.filter((task) => {
-    const matchesStatus =
-      statusFilter === "all" || task.status === statusFilter;
-    const matchesSearch =
-      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.internship.company.toLowerCase().includes(searchQuery.toLowerCase());
+  const [loading, setLoading] = useState(true);
 
-    return matchesStatus && matchesSearch;
-  });
+  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
 
-  return (
+  const [currPage, setCurrPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const res = await apiConnector(
+          "GET",
+          `${
+            import.meta.env.VITE_API_URL
+          }/internship/getAllTasksUnderSupervisor`
+        );
+
+        if (!res.data.success) {
+          throw new Error(res.data.message);
+        }
+
+        setTasks(res.data.data);
+        setFilteredTasks(res.data.data);
+        setTotalPages(Math.ceil(res.data.data.length / 10)); // Assuming 10 tasks per page
+        setCurrPage(1); // Reset current page to 1 after fetching tasks
+      } catch (error) {
+        toast.error("Failed to fetch tasks");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTasks();
+  }, []);
+
+  useEffect(() => {
+    const fiiltered = tasks.filter((task) => {
+      const matchesStatus =
+        statusFilter === "all" || task.status === statusFilter;
+      const matchesSearch =
+        task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        task.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        task.student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        task.internship.company
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+
+      return matchesStatus && matchesSearch;
+    });
+
+    setFilteredTasks(fiiltered);
+  }, [searchQuery, statusFilter]);
+
+  return loading ? (
+    <Spinner />
+  ) : (
     <MainLayout role="supervisor">
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -222,8 +164,8 @@ export default function SupervisorTasks() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -246,7 +188,7 @@ export default function SupervisorTasks() {
               </div>
             </div>
 
-            <div className="rounded-md border">
+            <div className="rounded-md border max-h-[calc(100vh-340px)] overflow-y-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -260,7 +202,6 @@ export default function SupervisorTasks() {
                     <TableHead>Internship</TableHead>
                     <TableHead>Due Date</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -283,13 +224,11 @@ export default function SupervisorTasks() {
                           <div className="flex items-center gap-3">
                             <Avatar>
                               <AvatarImage
-                                src={`/placeholder.svg?height=32&width=32`}
+                                src={task.student.image}
+                                alt={task.student.name}
                               />
                               <AvatarFallback>
-                                {task.student.name
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")}
+                                {task.student.name.charAt(0)}
                               </AvatarFallback>
                             </Avatar>
                             <div>
@@ -312,7 +251,7 @@ export default function SupervisorTasks() {
                           {new Date(task.dueDate).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
-                          {task.status === "completed" ? (
+                          {task.status === "Completed" ? (
                             <div className="flex items-center text-sm text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full w-fit">
                               <CheckCircle className="mr-1 h-3 w-3" />
                               Completed
@@ -324,18 +263,33 @@ export default function SupervisorTasks() {
                             </div>
                           )}
                         </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" asChild>
-                            <NavLink to={`/supervisor/tasks/${task.id}`}>
-                              Review
-                            </NavLink>
-                          </Button>
-                        </TableCell>
                       </TableRow>
                     ))
                   )}
                 </TableBody>
               </Table>
+            </div>
+
+            <div className="flex justify-between items-center mt-2">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  disabled={currPage === 1}
+                  onClick={() => setCurrPage(currPage - 1)}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={currPage === totalPages}
+                  onClick={() => setCurrPage(currPage + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+              <div>
+                Page {currPage} of {totalPages}
+              </div>
             </div>
           </CardContent>
         </Card>

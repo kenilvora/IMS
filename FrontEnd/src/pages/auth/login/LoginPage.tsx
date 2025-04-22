@@ -5,7 +5,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -13,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
-import { NavLink, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { apiConnector } from "@/services/apiConnector";
 import Spinner from "@/components/Spinner";
 
@@ -26,7 +25,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (data: any) => {
-    console.log(data);
     setLoading(true);
     try {
       const res = await apiConnector(
@@ -62,7 +60,8 @@ export default function LoginPage() {
         });
       }
     } catch (error) {
-      toast.error("Login failed. Please try again.");
+      const errMsg = (error as any).response?.data?.message;
+      toast.error(errMsg || "An error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -132,31 +131,12 @@ export default function LoginPage() {
                     </Button>
                   </div>
                 </div>
-                <div className="flex items-center justify-end">
-                  <NavLink
-                    to="/forgot-password"
-                    className="text-sm text-blue-600 hover:text-blue-500"
-                  >
-                    Forgot password?
-                  </NavLink>
-                </div>
                 <Button type="submit" className="w-full">
                   Log in
                 </Button>
               </div>
             </form>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <div className="text-center text-sm">
-              Don&apos;t have an account?{" "}
-              <NavLink
-                to="/signup"
-                className="text-blue-600 hover:text-blue-500 font-medium"
-              >
-                Sign up
-              </NavLink>
-            </div>
-          </CardFooter>
         </Card>
       </div>
     </div>

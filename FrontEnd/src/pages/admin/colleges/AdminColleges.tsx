@@ -1,14 +1,5 @@
-import { useState } from "react";
-import {
-  ArrowUpDown,
-  Building,
-  CheckCircle,
-  Layers,
-  Plus,
-  Search,
-  Users,
-  XCircle,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Building, Layers, Plus, Search, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,76 +19,64 @@ import {
 } from "@/components/ui/table";
 import MainLayout from "@/components/main-layout";
 import { NavLink } from "react-router-dom";
+import toast from "react-hot-toast";
+import { apiConnector } from "@/services/apiConnector";
+import Spinner from "@/components/Spinner";
+
+type College = {
+  id: string;
+  name: string;
+  departments: number;
+  students: number;
+  supervisors: number;
+  internships: number;
+};
 
 export default function AdminColleges() {
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Dummy data for colleges
-  const colleges = [
-    {
-      id: "col-001",
-      name: "College of Engineering",
-      departments: 5,
-      students: 45,
-      supervisors: 8,
-      internships: 38,
-      status: "active",
-    },
-    {
-      id: "col-002",
-      name: "School of Business",
-      departments: 4,
-      students: 30,
-      supervisors: 5,
-      internships: 25,
-      status: "active",
-    },
-    {
-      id: "col-003",
-      name: "College of Arts & Sciences",
-      departments: 8,
-      students: 15,
-      supervisors: 3,
-      internships: 12,
-      status: "active",
-    },
-    {
-      id: "col-004",
-      name: "School of Medicine",
-      departments: 3,
-      students: 10,
-      supervisors: 4,
-      internships: 10,
-      status: "active",
-    },
-    {
-      id: "col-005",
-      name: "School of Law",
-      departments: 2,
-      students: 0,
-      supervisors: 0,
-      internships: 0,
-      status: "inactive",
-    },
-  ];
+  const [colleges, setColleges] = useState<College[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Filter colleges based on search query
-  const filteredColleges = colleges.filter((college) =>
-    college.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const [filteredColleges, setFilteredColleges] = useState<College[]>([]);
 
-  // const handleDeleteClick = (collegeId: string) => {
-  //   setCollegeToDelete(collegeId);
-  //   setIsDeleteDialogOpen(true);
-  // };
+  useEffect(() => {
+    const fetchColleges = async () => {
+      setLoading(true);
+      try {
+        const res = await apiConnector(
+          "GET",
+          `${import.meta.env.VITE_API_URL}/college/getFullCollegeDetails`
+        );
 
-  // const handleDeleteConfirm = () => {
-  //   // In a real app, this would delete the college from the backend
-  //   setIsDeleteDialogOpen(false);
-  //   setCollegeToDelete(null);
-  // };
+        if (!res.data.success) {
+          throw new Error(res.data.message);
+        }
 
-  return (
+        setColleges(res.data.data);
+        setFilteredColleges(res.data.data);
+      } catch (error) {
+        toast.error("Failed to fetch colleges");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchColleges();
+  }, []);
+
+  useEffect(() => {
+    const filtered = colleges.filter((college) =>
+      college.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    setFilteredColleges(filtered);
+  }, [searchQuery]);
+
+  return loading ? (
+    <Spinner />
+  ) : (
     <MainLayout role="admin">
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -137,21 +116,15 @@ export default function AdminColleges() {
               </div>
             </div>
 
-            <div className="rounded-md border">
+            <div className="rounded-md border max-h-[calc(100vh-340px)] overflow-y-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>
-                      <div className="flex items-center">
-                        College Name
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                      </div>
-                    </TableHead>
+                    <TableHead>College Name</TableHead>
                     <TableHead>Departments</TableHead>
                     <TableHead>Students</TableHead>
                     <TableHead>Supervisors</TableHead>
-                    <TableHead>Internships</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Total Internships</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -184,19 +157,6 @@ export default function AdminColleges() {
                         </TableCell>
                         <TableCell>{college.supervisors}</TableCell>
                         <TableCell>{college.internships}</TableCell>
-                        <TableCell>
-                          {college.status === "active" ? (
-                            <div className="flex items-center text-sm text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full w-fit">
-                              <CheckCircle className="mr-1 h-3 w-3" />
-                              Active
-                            </div>
-                          ) : (
-                            <div className="flex items-center text-sm text-red-600 bg-red-50 px-2.5 py-0.5 rounded-full w-fit">
-                              <XCircle className="mr-1 h-3 w-3" />
-                              Inactive
-                            </div>
-                          )}
-                        </TableCell>
                       </TableRow>
                     ))
                   )}

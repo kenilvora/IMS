@@ -1,10 +1,13 @@
 import InternshipDetails from "../models/InternshipDetails.js";
 import User from "../models/User.js";
 import Task from "../models/Task.js";
-import CompanyDetails from "../models/CompanyDetails.js";
 import cron from "node-cron";
 import { uploadFileToCloudinary } from "../utils/uploadFileToCloudinary.js";
-import dotenv from "dotenv";
+import dotenv, { populate } from "dotenv";
+import mongoose from "mongoose";
+import Department from "../models/Department.js";
+import { mailSender } from "../utils/mailSender.js";
+import { getInternshipStatusEmail } from "../mail/internshipStatus.js";
 
 dotenv.config();
 
@@ -14,15 +17,26 @@ cron.schedule("0 0 * * *", async () => {
     const internships = await InternshipDetails.find({ status: "OnGoing" });
     internships.forEach(async (internship) => {
       if (internship.startDate && internship.endDate) {
-        const totalDuration = internship.endDate - internship.startDate;
-        const elapsedTime = Math.min(
-          Date.now() - internship.startDate,
-          totalDuration
+        let today = new Date();
+        let progress = 0;
+        const totalDays =
+          Math.floor(
+            (new Date(internship.endDate) - new Date(internship.startDate)) /
+              (1000 * 60 * 60 * 24)
+          ) + 1;
+
+        const elapsedDays = Math.min(
+          Math.floor(
+            (today - new Date(internship.startDate)) / (1000 * 60 * 60 * 24)
+          ) + 1,
+          totalDays
         );
-        internship.progress = Math.max(
+        progress = Math.max(
           0,
-          Math.min((elapsedTime / totalDuration) * 100, 100)
-        );
+          Math.min((elapsedDays / totalDays) * 100, 100)
+        ).toFixed(0);
+        internship.progress = progress;
+        internship.status = progress === 100 ? "Completed" : "OnGoing";
         await internship.save();
       }
     });
@@ -35,45 +49,35 @@ cron.schedule("0 0 * * *", async () => {
 export const addInternship = async (req, res) => {
   try {
     const {
-      title,
-      description,
       companyName,
       companyEmail,
-      companyContact,
-      companyAddress,
+      position,
+      description,
+      supervisorName,
+      supervisorEmail,
       startDate,
+      endDate,
+      department,
       skills,
       status = "OnGoing",
-      endDate,
     } = req.body;
 
     const id = req.user.userId;
 
     if (
-      !title ||
-      !description ||
       !companyName ||
-      !companyEmail ||
-      !companyContact ||
-      !companyAddress ||
+      !position ||
+      !description ||
+      !supervisorName ||
+      !supervisorEmail ||
       !startDate ||
+      !department ||
       !skills ||
-      !endDate
+      !description
     ) {
       return res.status(400).json({
         success: false,
         message: "All fields are required",
-      });
-    }
-
-    let company = await CompanyDetails.findOne({ email: companyEmail });
-
-    if (!company) {
-      company = await CompanyDetails.create({
-        name: companyName,
-        email: companyEmail,
-        contactNumber: companyContact,
-        address: companyAddress,
       });
     }
 
@@ -84,18 +88,49 @@ export const addInternship = async (req, res) => {
       });
     }
 
+    const today = new Date();
+
+    let progress = 0;
+    if (status === "OnGoing" && endDate) {
+      const totalDays =
+        Math.floor(
+          (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)
+        ) + 1;
+
+      // Elapsed days so far (clamped so it doesn’t exceed totalDays)
+      const elapsedDays = Math.min(
+        Math.floor((today - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1,
+        totalDays
+      );
+      progress = Math.max(
+        0,
+        Math.min((elapsedDays / totalDays) * 100, 100)
+      ).toFixed(0);
+    } else if (status === "Completed") {
+      progress = 100;
+    }
+
     const internShip = await InternshipDetails.create({
       user: id,
-      title,
+      companyDetails: {
+        name: companyName,
+        email: companyEmail,
+      },
+      position,
       description,
-      companyDetails: company._id,
-      startDate,
+      supervisor: {
+        name: supervisorName,
+        email: supervisorEmail,
+      },
+      startDate: new Date(startDate).toISOString(),
+      endDate: endDate ? new Date(endDate).toISOString() : null,
+      department,
       skills,
-      endDate,
-      status,
+      status: progress === 100 ? "Completed" : status,
+      progress: progress,
     });
 
-    await User.findByIdAndUpdate(
+    const user = await User.findByIdAndUpdate(
       {
         _id: id,
       },
@@ -122,12 +157,12 @@ export const addInternship = async (req, res) => {
 
 export const addTask = async (req, res) => {
   try {
-    const { title, description, deadline, status = "InProgress" } = req.body;
+    const { title, description, deadline, status = "Pending" } = req.body;
     const internShipId = req.params.id;
 
     const id = req.user.userId;
 
-    if (!title || !description || !deadline) {
+    if (!title || !description || !deadline || !internShipId) {
       return res.status(400).json({
         success: false,
         message: "All fields are required",
@@ -148,12 +183,12 @@ export const addTask = async (req, res) => {
     }
 
     const task = await Task.create({
+      user: id,
+      internshipDetails: new mongoose.Types.ObjectId(internShipId),
       title,
       description,
-      deadline,
+      deadline: new Date(deadline).toISOString(),
       status,
-      assignedToStudent: id,
-      assignedByCompany: internShip.companyDetails,
     });
 
     await InternshipDetails.findByIdAndUpdate(
@@ -192,30 +227,45 @@ export const getTask = async (req, res) => {
     if (!internShip || internShip.user.toString() !== id) {
       return res.status(404).json({
         success: false,
-        message: "No OnGoing Internship found",
+        message: "Invalid Internship ID",
       });
     }
 
-    const task = await Task.findById(taskId)
-      .populate({
-        path: "assignedToStudent",
-        select: "firstName lastName email contactNumber enrollmentNumber",
-      })
-      .populate({
-        path: "assignedByCompany",
-        select: "name email contactNumber",
-      });
+    const task = await Task.findById(taskId);
 
-    if (!task) {
+    if (!task || !internShip.tasks.includes(taskId)) {
       return res.status(404).json({
         success: false,
         message: "Task not found",
       });
     }
 
+    const data = {
+      id: task._id,
+      title: task.title,
+      description: task.description,
+      internship: {
+        id: internShip._id,
+        company: internShip.companyDetails.name,
+        position: internShip.position,
+      },
+      supervisor: internShip.supervisor.name,
+      dueDate: task.deadline,
+      status: task.status,
+      attachments: task.attachments,
+      comments: task.comments.map((comment) => {
+        return {
+          author: comment.author,
+          role: comment.role,
+          date: comment.date,
+          text: comment.text,
+        };
+      }),
+    };
+
     return res.status(200).json({
       success: true,
-      task,
+      data,
     });
   } catch (err) {
     console.log(err);
@@ -240,22 +290,56 @@ export const getTasks = async (req, res) => {
       });
     }
 
-    const tasks = await Task.find({
-      assignedToStudent: id,
-      assignedByCompany: internShip.companyDetails,
-    })
-      .populate({
-        path: "assignedToStudent",
-        select: "firstName lastName email contactNumber enrollmentNumber",
-      })
-      .populate({
-        path: "assignedByCompany",
-        select: "name email contactNumber",
-      });
+    const tasks = await Task.findById(id);
 
     return res.status(200).json({
       success: true,
       tasks,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+export const getAllTasks = async (req, res) => {
+  try {
+    const id = req.user.userId;
+
+    const internships = await User.findById(id)
+      .select("internshipDetails")
+      .populate({
+        path: "internshipDetails",
+        populate: [
+          {
+            path: "tasks",
+            select: "title description deadline status",
+          },
+        ],
+      });
+
+    const data = internships.internshipDetails
+      .map((internship) => {
+        return internship.tasks.map((task) => {
+          return {
+            id: task._id,
+            title: task.title,
+            description: task.description,
+            internship: internship.companyDetails.name,
+            internshipId: internship._id,
+            dueDate: task.deadline,
+            status: task.status,
+          };
+        });
+      })
+      .flat();
+
+    return res.status(200).json({
+      success: true,
+      data,
     });
   } catch (err) {
     console.log(err);
@@ -271,18 +355,211 @@ export const getInternship = async (req, res) => {
     const internShipId = req.params.id;
     const id = req.user.userId;
 
+    if (!internShipId) {
+      return res.status(400).json({
+        success: false,
+        message: "Internship ID is required",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!user.internshipDetails.includes(internShipId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Internship ID",
+      });
+    }
+
     const internShip = await InternshipDetails.findById(internShipId)
       .populate({
-        path: "companyDetails",
-        select: "name email",
+        path: "tasks",
       })
       .populate({
-        path: "tasks",
+        path: "user",
         populate: {
-          path: "assignedToStudent",
-          select: "firstName lastName email enrollmentNumber",
+          path: "faculty",
         },
       });
+
+    if (!internShip || internShip.user._id.toString() !== id) {
+      return res.status(404).json({
+        success: false,
+        message: "No OnGoing Internship found",
+      });
+    }
+
+    const internshipData = {
+      id: internShip._id,
+      company: internShip.companyDetails.name,
+      position: internShip.position,
+      department: internShip.department,
+      supervisor: internShip.supervisor.name,
+      supervisorEmail: internShip.supervisor.email,
+      faculty:
+        internShip.user.faculty.firstName +
+        " " +
+        internShip.user.faculty.lastName,
+      status: internShip.status,
+      startDate: internShip.startDate,
+      endDate: internShip.endDate,
+      progress: internShip.progress,
+      description: internShip.description,
+      skills: internShip.skills,
+      tasks: {
+        total: internShip.tasks.length,
+        completed: internShip.tasks.filter(
+          (task) => task.status === "Completed"
+        ).length,
+      },
+      approval: internShip.approval,
+    };
+
+    const tasksData = internShip.tasks.map((task) => {
+      return {
+        id: task._id,
+        title: task.title,
+        description: task.description,
+        dueDate: task.deadline,
+        status: task.status,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      internship: internshipData,
+      tasks: tasksData,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+export const getInternshipForAdminAndSupervisor = async (req, res) => {
+  try {
+    const internShipId = req.params.id;
+    const id = req.user.userId;
+
+    if (!internShipId) {
+      return res.status(400).json({
+        success: false,
+        message: "Internship ID is required",
+      });
+    }
+
+    const internShip = await InternshipDetails.findById(internShipId)
+      .populate({
+        path: "tasks",
+      })
+      .populate({
+        path: "user",
+        populate: {
+          path: "department",
+        },
+      });
+
+    if (!internShip) {
+      return res.status(404).json({
+        success: false,
+        message: "No Internship found",
+      });
+    }
+
+    const internshipData = {
+      id: internShip._id,
+      student: {
+        id: internShip.user._id,
+        name: internShip.user.firstName + " " + internShip.user.lastName,
+        image: internShip.user.image,
+        phone: internShip.user.contactNumber,
+        email: internShip.user.email,
+        department: internShip.user.department.name,
+        year: internShip.user.currentYear,
+      },
+      company: internShip.companyDetails.name,
+      position: internShip.position,
+      department: internShip.department,
+      status: internShip.status,
+      startDate: internShip.startDate,
+      endDate: internShip.endDate,
+      progress: internShip.progress,
+      description: internShip.description,
+      skills: internShip.skills,
+      tasks: {
+        total: internShip.tasks.length,
+        completed: internShip.tasks.filter(
+          (task) => task.status === "Completed"
+        ).length,
+      },
+      approval: internShip.approval,
+    };
+
+    const tasksData = internShip.tasks.map((task) => {
+      return {
+        id: task._id,
+        title: task.title,
+        description: task.description,
+        dueDate: task.deadline,
+        status: task.status,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      internship: internshipData,
+      tasks: tasksData,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+export const getInternshipById = async (req, res) => {
+  try {
+    const internShipId = req.params.id;
+    const id = req.user.userId;
+
+    if (!internShipId) {
+      return res.status(400).json({
+        success: false,
+        message: "Internship ID is required",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!user.internshipDetails.includes(internShipId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Internship ID",
+      });
+    }
+
+    const internShip = await InternshipDetails.findById(internShipId).populate({
+      path: "tasks",
+    });
 
     if (!internShip || internShip.user.toString() !== id) {
       return res.status(404).json({
@@ -291,9 +568,24 @@ export const getInternship = async (req, res) => {
       });
     }
 
+    const internshipData = {
+      id: internShip._id,
+      companyName: internShip.companyDetails.name,
+      companyEmail: internShip.companyDetails.email,
+      position: internShip.position,
+      description: internShip.description,
+      supervisorName: internShip.supervisor.name,
+      supervisorEmail: internShip.supervisor.email,
+      startDate: internShip.startDate,
+      endDate: internShip.endDate,
+      department: internShip.department,
+      skills: internShip.skills,
+      status: internShip.status,
+    };
+
     return res.status(200).json({
       success: true,
-      internShip,
+      internship: internshipData,
     });
   } catch (err) {
     console.log(err);
@@ -308,24 +600,40 @@ export const getAllInternshipsOfMe = async (req, res) => {
   try {
     const id = req.user.userId;
 
-    const internShips = await InternshipDetails.find({
-      user: id,
-    })
+    const internShips = await User.findById(id)
+      .select("internshipDetails")
       .populate({
-        path: "companyDetails",
-        select: "name email",
-      })
-      .populate({
-        path: "tasks",
-        populate: {
-          path: "assignedToStudent",
-          select: "firstName lastName email enrollmentNumber",
-        },
+        path: "internshipDetails",
+        populate: [
+          {
+            path: "tasks",
+            select: "title description deadline status",
+          },
+        ],
       });
+
+    const updatedData = internShips.internshipDetails.map((internship) => {
+      return {
+        id: internship._id,
+        company: internship.companyDetails.name,
+        position: internship.position,
+        supervisor: internship.supervisor.name,
+        status: internship.status,
+        startDate: internship.startDate,
+        endDate: internship.endDate,
+        tasks: {
+          total: internship.tasks.length,
+          completed: internship.tasks.filter(
+            (task) => task.status === "Completed"
+          ).length,
+        },
+        approval: internship.approval,
+      };
+    });
 
     return res.status(200).json({
       success: true,
-      internShips,
+      data: updatedData,
     });
   } catch (err) {
     console.log(err);
@@ -336,24 +644,151 @@ export const getAllInternshipsOfMe = async (req, res) => {
   }
 };
 
-export const getAllInternships = async (req, res) => {
+export const getAllInternshipsForAdmin = async (req, res) => {
   try {
-    const internShips = await InternshipDetails.find()
-      .populate({
-        path: "companyDetails",
-        select: "name email contactNumber address",
-      })
+    const internShips = await InternshipDetails.find({
+      approval: "Approved",
+    })
       .populate({
         path: "tasks",
-        populate: {
-          path: "assignedToStudent",
-          select: "firstName lastName email enrollmentNumber",
-        },
+      })
+      .populate({
+        path: "user",
+        populate: [
+          {
+            path: "college",
+          },
+          {
+            path: "department",
+          },
+          {
+            path: "faculty",
+          },
+        ],
+      })
+      .sort({
+        createdAt: -1,
       });
+
+    const data = internShips.map((internship, i) => {
+      return {
+        id: internship._id,
+        student: {
+          id: internship.user._id,
+          name: internship.user.firstName + " " + internship.user.lastName,
+          image: internship.user.image,
+          email: internship.user.email,
+        },
+        supervisor: {
+          id: i,
+          name: internship.supervisor.name,
+        },
+        company: internship.companyDetails.name,
+        position: internship.position,
+        status: internship.status,
+        startDate: internship.startDate,
+        endDate: internship.endDate,
+        college: internship.user.college.name,
+        department: internship.user.department.name,
+        faculty:
+          internship.user.faculty.firstName +
+          " " +
+          internship.user.faculty.lastName,
+        tasks: {
+          total: internship.tasks.length,
+          completed: internship.tasks.filter(
+            (task) => task.status === "Completed"
+          ).length,
+        },
+        approval: internship.approval,
+      };
+    });
 
     return res.status(200).json({
       success: true,
-      internShips,
+      data,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+export const getAllInternshipsForSupervisor = async (req, res) => {
+  try {
+    const id = req.user.userId;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Token is missing",
+      });
+    }
+
+    const user = await User.findById(id).populate({
+      path: "internStudents",
+      populate: [
+        {
+          path: "internshipDetails",
+          populate: {
+            path: "user",
+          },
+        },
+        {
+          path: "college",
+        },
+        {
+          path: "department",
+        },
+      ],
+    });
+
+    const internShips = user.internStudents
+      .map((student) => {
+        return student.internshipDetails;
+      })
+      .flat();
+
+    const data = internShips.map((internship, i) => {
+      return {
+        id: internship._id,
+        student: {
+          id: internship.user._id,
+          name: internship.user.firstName + " " + internship.user.lastName,
+          image: internship.user.image,
+          email: internship.user.email,
+        },
+        supervisor: {
+          id: i,
+          name: internship.supervisor.name,
+        },
+        company: internship.companyDetails.name,
+        position: internship.position,
+        status: internship.status,
+        startDate: internship.startDate,
+        endDate: internship.endDate,
+        college: internship.user.college.name,
+        department: internship.user.department.name,
+        faculty:
+          internship.user.faculty.firstName +
+          " " +
+          internship.user.faculty.lastName,
+        tasks: {
+          total: internship.tasks.length,
+          completed: internship.tasks.filter(
+            (task) => task.status === "Completed"
+          ).length,
+        },
+        approval: internship.approval,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      data,
     });
   } catch (err) {
     console.log(err);
@@ -371,7 +806,11 @@ export const updateInternship = async (req, res) => {
 
     const internShip = await InternshipDetails.findById(internShipId);
 
-    if (!internShip || internShip.user.toString() !== id) {
+    if (
+      !internShip ||
+      internShip.user.toString() !== id ||
+      internShip.status === "Completed"
+    ) {
       return res.status(404).json({
         success: false,
         message: "No OnGoing Internship found",
@@ -379,9 +818,15 @@ export const updateInternship = async (req, res) => {
     }
 
     const {
-      title = internShip.title,
+      companyName = internShip.companyDetails.name,
+      companyEmail = internShip.companyDetails.email,
+      position = internShip.position,
       description = internShip.description,
+      supervisorName = internShip.supervisor.name,
+      supervisorEmail = internShip.supervisor.email,
+      startDate = internShip.startDate,
       endDate = internShip.endDate,
+      department = internShip.department,
       skills = internShip.skills,
       status = internShip.status,
     } = req.body;
@@ -393,35 +838,26 @@ export const updateInternship = async (req, res) => {
       });
     }
 
-    let certificate = req.files ? req.files.certificate : null;
-    let finalReport = req.files ? req.files.finalReport : null;
+    const today = new Date();
 
-    if (certificate) {
-      certificate = await uploadFileToCloudinary(
-        certificate,
-        process.env.FOLDER_NAME
-      );
-    }
+    let progress = 0;
+    if (status === "OnGoing" && endDate) {
+      const totalDays =
+        Math.floor(
+          (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)
+        ) + 1;
 
-    if (finalReport) {
-      finalReport = await uploadFileToCloudinary(
-        finalReport,
-        process.env.FOLDER_NAME
-      );
-    }
-
-    let progress;
-
-    if (endDate) {
-      const totalDuration = new Date(endDate) - internShip.startDate;
-      const elapsedTime = Math.min(
-        Date.now() - internShip.startDate,
-        totalDuration
+      // Elapsed days so far (clamped so it doesn’t exceed totalDays)
+      const elapsedDays = Math.min(
+        Math.floor((today - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1,
+        totalDays
       );
       progress = Math.max(
         0,
-        Math.min((elapsedTime / totalDuration) * 100, 100)
-      );
+        Math.min((elapsedDays / totalDays) * 100, 100)
+      ).toFixed(0);
+    } else if (status === "Completed") {
+      progress = 100;
     }
 
     await InternshipDetails.findByIdAndUpdate(
@@ -429,18 +865,22 @@ export const updateInternship = async (req, res) => {
         _id: internShipId,
       },
       {
-        title,
+        companyDetails: {
+          name: companyName,
+          email: companyEmail,
+        },
+        position,
         description,
-        endDate,
+        supervisor: {
+          name: supervisorName,
+          email: supervisorEmail,
+        },
+        startDate: new Date(startDate).toISOString(),
+        endDate: endDate ? new Date(endDate).toISOString() : null,
+        department,
         skills,
-        certificate: certificate
-          ? certificate.secure_url
-          : internShip.certificate,
-        finalReport: finalReport
-          ? finalReport.secure_url
-          : internShip.finalReport,
-        progress: progress || internShip.progress,
-        status,
+        status: progress === 100 ? "Completed" : status,
+        progress: progress,
       },
       { new: true }
     );
@@ -475,7 +915,11 @@ export const updateTask = async (req, res) => {
 
     const task = await Task.findById(taskId);
 
-    if (!task) {
+    if (
+      !task ||
+      !internShip.tasks.includes(taskId) ||
+      task.status === "Completed"
+    ) {
       return res.status(404).json({
         success: false,
         message: "Task not found",
@@ -488,13 +932,6 @@ export const updateTask = async (req, res) => {
       deadline = task.deadline,
       status = task.status,
     } = req.body;
-
-    if (deadline && new Date(deadline) < new Date()) {
-      return res.status(400).json({
-        success: false,
-        message: "Deadline should be greater than current date",
-      });
-    }
 
     await Task.findByIdAndUpdate(
       {
@@ -522,61 +959,100 @@ export const updateTask = async (req, res) => {
   }
 };
 
-export const commentOnTask = async (req, res) => {
+export const supervisorActionOnInternship = async (req, res) => {
   try {
-    const internShipId = req.params.internShipId;
-    const taskId = req.params.taskId;
     const id = req.user.userId;
+    const internShipId = req.params.internshipId;
 
-    const internShip = await InternshipDetails.findById(internShipId);
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Token is missing",
+      });
+    }
+
+    if (!internShipId) {
+      return res.status(400).json({
+        success: false,
+        message: "Internship ID is required",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Supervisor not found",
+      });
+    }
+
+    const { approval } = req.body;
+
+    if (!approval) {
+      return res.status(400).json({
+        success: false,
+        message: "Approval status is required",
+      });
+    }
+
+    if (approval !== "Approved" && approval !== "Rejected") {
+      return res.status(400).json({
+        success: false,
+        message: "Approval status should be either Approved or Rejected",
+      });
+    }
+
+    const internShip = await InternshipDetails.findById(internShipId).populate({
+      path: "user",
+    });
 
     if (!internShip) {
       return res.status(404).json({
         success: false,
-        message: "No Internship found",
+        message: "Internship not found",
       });
     }
 
-    const task = await Task.findById(taskId);
-
-    if (!task) {
+    if (!user.internStudents.includes(internShip.user._id)) {
       return res.status(404).json({
         success: false,
-        message: "Task not found",
+        message: "Internship not found",
       });
     }
 
-    const { description, rating } = req.body;
+    internShip.approval = approval;
 
-    if (!description || !rating) {
-      return res.status(400).json({
-        success: false,
-        message: "All fields are required",
-      });
-    }
+    await internShip.save();
 
-    await Task.findByIdAndUpdate(
+    await Department.findByIdAndUpdate(
       {
-        _id: taskId,
+        _id: internShip.user.department,
       },
       {
         $push: {
-          comments: {
-            description,
-            commentedBy: id,
-            rating,
-          },
+          internships: internShip._id,
         },
       },
       { new: true }
     );
 
+    mailSender(
+      internShip.user.email,
+      `Internship at ${internShip.companyDetails.name} as ${internShip.position} has been ${approval}`,
+      getInternshipStatusEmail(
+        `${internShip.user.firstName} ${internShip.user.lastName}`,
+        approval,
+        internShip.companyDetails.name,
+        internShip.position
+      )
+    );
+
     return res.status(200).json({
       success: true,
-      message: "Comment added successfully",
+      message: `Internship ${approval} successfully`,
     });
-  } catch (error) {
-    console.log(error);
+  } catch (err) {
     return res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -584,147 +1060,64 @@ export const commentOnTask = async (req, res) => {
   }
 };
 
-export const getInternshipByStatus = async (req, res) => {
+export const getAllTaskUnderSupervisor = async (req, res) => {
   try {
-    const status = req.query.status;
     const id = req.user.userId;
 
     if (!id) {
       return res.status(400).json({
         success: false,
-        message: "User Id is required",
+        message: "Token is missing",
       });
     }
 
-    if (status !== "OnGoing" && status !== "Completed") {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid status",
-      });
-    }
-
-    const internShips = await InternshipDetails.find({
-      user: id,
-      status,
-    })
-      .populate({
-        path: "companyDetails",
-        select: "name email contactNumber address",
-      })
-      .populate({
-        path: "tasks",
-        populate: {
-          path: "assignedToStudent",
-          select: "firstName lastName email enrollmentNumber",
-        },
-      });
-
-    return res.status(200).json({
-      success: true,
-      internShips,
-    });
-  } catch (err) {
-    console.log(err);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
-  }
-};
-
-export const getInternshipByStatusForFaculty = async (req, res) => {
-  try {
-    const status = req.query.status;
-    const id = req.query.facultyId;
-
-    if (!id) {
-      return res.status(400).json({
-        success: false,
-        message: "Faculty Id is required",
-      });
-    }
-
-    if (status !== "OnGoing" && status !== "Completed") {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid status",
-      });
-    }
-
-    const faculty = await User.findById(id);
-
-    if (!faculty || faculty.role !== "Supervisor") {
-      return res.status(404).json({
-        success: false,
-        message: "Faculty not found",
-      });
-    }
-
-    let internShips = [];
-
-    faculty.internStudents.forEach(async (student) => {
-      const internShipsOfStudent = await InternshipDetails.find({
-        user: student,
-        status,
-      })
-        .populate({
-          path: "companyDetails",
-          select: "name email contactNumber address",
-        })
-        .populate({
-          path: "tasks",
-          populate: {
-            path: "assignedToStudent",
-            select: "firstName lastName email enrollmentNumber",
+    const user = await User.findById(id).populate({
+      path: "internStudents",
+      populate: {
+        path: "internshipDetails",
+        populate: [
+          {
+            path: "tasks",
           },
+          {
+            path: "user",
+          },
+        ],
+      },
+    });
+
+    const allTasks = user.internStudents
+      .map((student) => {
+        return student.internshipDetails.map((internship) => {
+          return internship.tasks.map((task) => {
+            return {
+              id: task._id,
+              title: task.title,
+              description: task.description,
+              dueDate: task.deadline,
+              status: task.status,
+              internship: {
+                id: internship._id,
+                company: internship.companyDetails.name,
+              },
+              student: {
+                id: internship.user._id,
+                name:
+                  internship.user.firstName + " " + internship.user.lastName,
+                image: internship.user.image,
+                email: internship.user.email,
+              },
+            };
+          });
         });
-
-      internShips.push(...internShipsOfStudent);
-    });
-
-    return res.status(200).json({
-      success: true,
-      internShips,
-    });
-  } catch (err) {
-    console.log(err);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
-  }
-};
-
-export const getAllInternshipsByStatus = async (req, res) => {
-  try {
-    const status = req.query.status;
-
-    if (status !== "OnGoing" && status !== "Completed") {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid status",
-      });
-    }
-
-    const internShips = await InternshipDetails.find({ status })
-      .populate({
-        path: "companyDetails",
-        select: "name email contactNumber address",
       })
-      .populate({
-        path: "tasks",
-        populate: {
-          path: "assignedToStudent",
-          select: "firstName lastName email enrollmentNumber",
-        },
-      });
+      .flat(2);
 
     return res.status(200).json({
       success: true,
-      internShips,
+      data: allTasks,
     });
   } catch (err) {
-    console.log(err);
     return res.status(500).json({
       success: false,
       message: "Internal server error",

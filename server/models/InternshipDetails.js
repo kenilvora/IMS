@@ -7,7 +7,18 @@ const internship = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    title: {
+    companyDetails: {
+      name: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+      email: {
+        type: String,
+        trim: true,
+      },
+    },
+    position: {
       type: String,
       required: true,
       trim: true,
@@ -17,10 +28,17 @@ const internship = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    companyDetails: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "CompanyDetails",
-      required: true,
+    supervisor: {
+      name: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+      email: {
+        type: String,
+        required: true,
+        trim: true,
+      },
     },
     startDate: {
       type: Date,
@@ -29,45 +47,34 @@ const internship = new mongoose.Schema(
     endDate: {
       type: Date,
     },
+    department: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     skills: {
-      type: [String],
-      trim: true,
-      required: true,
-    },
-    mentor: {
-      name: {
-        type: String,
-        trim: true,
-        required: true,
-      },
-      email: {
-        type: String,
-        trim: true,
-        required: true,
-      },
-      contact: {
-        type: String,
-        trim: true,
-        required: true,
-      },
-      image: {
-        type: String,
-        trim: true,
-      },
-    },
-    location: {
       type: String,
       trim: true,
       required: true,
-    },
-    certificate: {
-      type: String,
-      trim: true,
     },
     progress: {
       type: Number,
       default: 0,
     },
+    documents: [
+      {
+        name: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        url: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+      },
+    ],
     tasks: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -82,6 +89,11 @@ const internship = new mongoose.Schema(
       type: String,
       enum: ["OnGoing", "Completed"],
       default: "OnGoing",
+    },
+    approval: {
+      type: String,
+      enum: ["Pending", "Approved", "Rejected"],
+      default: "Pending",
     },
   },
   { timestamps: true }

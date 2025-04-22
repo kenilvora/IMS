@@ -1,17 +1,17 @@
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Calendar } from "@/components/ui/calendar";
 import {
   ArrowLeft,
   Briefcase,
+  Calendar1,
   Building,
-  Calendar,
+  CalendarIcon,
   CheckCircle,
   Clock,
-  Download,
   FileEdit,
   FileText,
   Mail,
-  MapPin,
   Plus,
   RefreshCw,
   User,
@@ -49,141 +49,142 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import MainLayout from "@/components/main-layout";
-import { NavLink, useParams } from "react-router-dom";
+import { NavLink, useNavigate, useParams } from "react-router-dom";
+import Spinner from "@/components/Spinner";
+import toast from "react-hot-toast";
+import { apiConnector } from "@/services/apiConnector";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@components/ui/popover";
+import { format } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@components/ui/select";
+import { MdPendingActions } from "react-icons/md";
+
+type Internship = {
+  id: string;
+  company: string;
+  position: string;
+  department: string;
+  supervisor: string;
+  supervisorEmail: string;
+  faculty: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  progress: number;
+  description: string;
+  skills: string;
+  tasks: {
+    total: number;
+    completed: number;
+  };
+  approval: "Pending" | "Approved" | "Rejected";
+};
+
+type Task = {
+  id: string;
+  title: string;
+  description: string;
+  dueDate: string;
+  status: string;
+};
 
 export default function InternshipDetails() {
   const params = useParams();
   const internshipId = params.id as string;
+
+  const navigate = useNavigate();
+
   const [isAddTaskDialogOpen, setIsAddTaskDialogOpen] = useState(false);
 
   // Dummy data for the internship details
-  const internship = {
-    id: "int-001",
-    company: "TechCorp Inc.",
-    position: "Frontend Developer Intern",
-    department: "Engineering",
-    supervisor: "Dr. Sarah Johnson",
-    supervisorEmail: "sarah.johnson@techcorp.com",
-    location: "San Francisco, CA",
-    status: "ongoing",
-    startDate: "2025-01-15",
-    endDate: "2025-06-15",
-    progress: 45,
-    description:
-      "Working on the frontend development team to build responsive and accessible user interfaces for the company's main product. Responsibilities include implementing UI components, fixing bugs, and collaborating with designers and backend developers.",
-    skills: "React, TypeScript, CSS, Accessibility, Git, Agile methodologies",
-    tasks: {
-      total: 8,
-      completed: 4,
-    },
-  };
+  const [internship, setInternship] = useState<Internship>({} as Internship);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Dummy data for tasks
-  const tasks = [
-    {
-      id: "task-001",
-      title: "Onboarding and Environment Setup",
-      description:
-        "Set up development environment, get familiar with the codebase, and complete onboarding tasks.",
-      dueDate: "2025-01-20",
-      status: "completed",
-      comments: [
-        {
-          author: "Dr. Sarah Johnson",
-          date: "2025-01-21",
-          text: "Great job setting up quickly. Let me know if you have any questions about the codebase.",
-        },
-      ],
-    },
-    {
-      id: "task-002",
-      title: "UI Component Implementation",
-      description:
-        "Implement the new dashboard card components as per the design specifications.",
-      dueDate: "2025-02-05",
-      status: "completed",
-      comments: [
-        {
-          author: "Dr. Sarah Johnson",
-          date: "2025-02-06",
-          text: "The components look great and match the design perfectly. Good work on making them responsive.",
-        },
-      ],
-    },
-    {
-      id: "task-003",
-      title: "Bug Fixes for Mobile View",
-      description: "Fix reported bugs in the mobile view of the application.",
-      dueDate: "2025-02-20",
-      status: "completed",
-      comments: [
-        {
-          author: "Dr. Sarah Johnson",
-          date: "2025-02-21",
-          text: "All bugs have been fixed successfully. Your attention to detail is impressive.",
-        },
-      ],
-    },
-    {
-      id: "task-004",
-      title: "Accessibility Improvements",
-      description:
-        "Improve accessibility of the application by implementing ARIA attributes and keyboard navigation.",
-      dueDate: "2025-03-10",
-      status: "completed",
-      comments: [
-        {
-          author: "Dr. Sarah Johnson",
-          date: "2025-03-11",
-          text: "Great improvements to accessibility. The application is now much more usable for everyone.",
-        },
-      ],
-    },
-    {
-      id: "task-005",
-      title: "Weekly Progress Report",
-      description:
-        "Submit a weekly progress report detailing tasks completed, challenges faced, and plans for the next week.",
-      dueDate: "2025-02-28",
-      status: "pending",
-      comments: [],
-    },
-    {
-      id: "task-006",
-      title: "Frontend Feature Implementation",
-      description:
-        "Implement the new user profile page with edit functionality.",
-      dueDate: "2025-03-05",
-      status: "pending",
-      comments: [],
-    },
-    {
-      id: "task-007",
-      title: "Code Review Meeting",
-      description:
-        "Participate in the code review meeting to discuss your implementations and receive feedback.",
-      dueDate: "2025-03-10",
-      status: "pending",
-      comments: [],
-    },
-    {
-      id: "task-008",
-      title: "UI/UX Design Feedback",
-      description:
-        "Provide feedback on the new design mockups for the upcoming features.",
-      dueDate: "2025-03-15",
-      status: "pending",
-      comments: [],
-    },
-  ];
+  const [taskData, setTaskData] = useState({
+    title: "",
+    description: "",
+    status: "",
+  });
 
-  const handleAddTask = (e: React.FormEvent) => {
+  const [deadLine, setDeadLine] = useState<Date>();
+
+  useEffect(() => {
+    const fetchInternshipDetails = async () => {
+      setLoading(true);
+      try {
+        const res = await apiConnector(
+          "GET",
+          `${
+            import.meta.env.VITE_API_URL
+          }/internship/getInternship/${internshipId}`
+        );
+
+        if (!res.data.success) {
+          throw new Error(res.data.message);
+        }
+
+        setInternship(res.data.internship);
+        setTasks(res.data.tasks);
+      } catch (error) {
+        toast.error("Failed to fetch internship details");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInternshipDetails();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsAddTaskDialogOpen(false);
-    // In a real app, this would submit the task data to the backend
+
+    if (!deadLine) {
+      toast.error("Please select a deadline");
+      return;
+    }
+
+    if (!taskData.status) {
+      toast.error("Please select a status");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await apiConnector(
+        "POST",
+        `${import.meta.env.VITE_API_URL}/internship/addTask/${internshipId}`,
+        {
+          ...taskData,
+          deadline: deadLine,
+        }
+      );
+
+      if (!res.data.success) {
+        throw new Error(res.data.message);
+      }
+      toast.success("Task added successfully");
+      navigate("/student/tasks");
+    } catch (error) {
+      const errMsg = (error as any).response.data.message;
+      toast.error(errMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return (
+  return loading ? (
+    <Spinner />
+  ) : (
     <MainLayout role="student">
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -201,75 +202,155 @@ export default function InternshipDetails() {
               <p className="text-muted-foreground">{internship.company}</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {internship.status === "ongoing" && (
+          {internship.status === "OnGoing" && (
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" asChild>
-                <NavLink to={`/student/internships/${internshipId}/edit`}>
+                <NavLink to={`/student/internships/edit/${internshipId}`}>
                   <FileEdit className="mr-2 h-4 w-4" /> Edit Internship
                 </NavLink>
               </Button>
-            )}
-            <Dialog
-              open={isAddTaskDialogOpen}
-              onOpenChange={setIsAddTaskDialogOpen}
-            >
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" /> Add Task
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <form onSubmit={handleAddTask}>
-                  <DialogHeader>
-                    <DialogTitle>Add New Task</DialogTitle>
-                    <DialogDescription>
-                      Create a new task for your internship
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="task-title">Task Title</Label>
-                      <Input
-                        id="task-title"
-                        placeholder="Enter task title"
-                        required
-                      />
+
+              <Dialog
+                open={isAddTaskDialogOpen}
+                onOpenChange={setIsAddTaskDialogOpen}
+              >
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" /> Add Task
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="h-[550px]">
+                  <form onSubmit={handleSubmit}>
+                    <DialogHeader>
+                      <DialogTitle>Add New Task</DialogTitle>
+                      <DialogDescription>
+                        Create a new task for your internship
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="task-title">Task Title*</Label>
+                        <Input
+                          id="task-title"
+                          placeholder="Enter task title"
+                          required
+                          value={taskData.title}
+                          onChange={(e) => {
+                            e.preventDefault();
+                            setTaskData((prev) => ({
+                              ...prev,
+                              title: e.target.value,
+                            }));
+                          }}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="task-description">Description*</Label>
+                        <Textarea
+                          id="task-description"
+                          placeholder="Describe the task in detail..."
+                          rows={3}
+                          required
+                          value={taskData.description}
+                          onChange={(e) => {
+                            e.preventDefault();
+                            setTaskData((prev) => ({
+                              ...prev,
+                              description: e.target.value,
+                            }));
+                          }}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>DeadLine*</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-start text-left font-normal"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {deadLine
+                                ? format(deadLine, "PPP")
+                                : "Select date"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={deadLine}
+                              onSelect={setDeadLine}
+                              required
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="status">Task Status*</Label>
+                        <Select
+                          required
+                          value={taskData.status}
+                          onValueChange={(value) => {
+                            setTaskData((prev) => ({
+                              ...prev,
+                              status: value,
+                            }));
+                          }}
+                        >
+                          <SelectTrigger id="status">
+                            <SelectValue placeholder="Select Status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Pending">Pending</SelectItem>
+                            <SelectItem value="Completed">Completed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="task-description">Description</Label>
-                      <Textarea
-                        id="task-description"
-                        placeholder="Describe the task in detail..."
-                        rows={3}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="task-due-date">Due Date</Label>
-                      <Input id="task-due-date" type="date" required />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsAddTaskDialogOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit">Add Task</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
+                    <DialogFooter>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsAddTaskDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit">Add Task</Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
           <div className="md:col-span-2 space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Internship Details</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  Internship Details
+                  {internship.approval === "Pending" ? (
+                    <div className="flex items-center text-sm text-yellow-600 bg-yellow-50 px-2.5 py-1.5 rounded-full w-fit">
+                      <MdPendingActions className="mr-1 h-3 w-3" />
+                      Pending Approval by {internship.faculty}
+                    </div>
+                  ) : internship.approval === "Approved" ? (
+                    <div className="flex items-center text-sm text-green-600 bg-green-50 px-2.5 py-1.5 rounded-full w-fit">
+                      <CheckCircle className="mr-1 h-3 w-3" />
+                      Approved by {internship.faculty}
+                    </div>
+                  ) : (
+                    <div className="flex items-center text-sm text-red-600 bg-red-50 px-2.5 py-1.5 rounded-full w-fit">
+                      <XCircle className="mr-1 h-3 w-3" />
+                      Rejected by {internship.faculty}
+                    </div>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -314,8 +395,8 @@ export default function InternshipDetails() {
                 <Tabs defaultValue="all">
                   <TabsList className="mb-4">
                     <TabsTrigger value="all">All Tasks</TabsTrigger>
-                    <TabsTrigger value="pending">Pending</TabsTrigger>
-                    <TabsTrigger value="completed">Completed</TabsTrigger>
+                    <TabsTrigger value="Pending">Pending</TabsTrigger>
+                    <TabsTrigger value="Completed">Completed</TabsTrigger>
                   </TabsList>
                   <TabsContent value="all">
                     <div className="rounded-md border">
@@ -343,7 +424,7 @@ export default function InternshipDetails() {
                                 {new Date(task.dueDate).toLocaleDateString()}
                               </TableCell>
                               <TableCell>
-                                {task.status === "completed" ? (
+                                {task.status === "Completed" ? (
                                   <div className="flex items-center text-sm text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full w-fit">
                                     <CheckCircle className="mr-1 h-3 w-3" />
                                     Completed
@@ -368,7 +449,7 @@ export default function InternshipDetails() {
                       </Table>
                     </div>
                   </TabsContent>
-                  <TabsContent value="pending">
+                  <TabsContent value="Pending">
                     <div className="rounded-md border">
                       <Table>
                         <TableHeader>
@@ -383,7 +464,7 @@ export default function InternshipDetails() {
                         </TableHeader>
                         <TableBody>
                           {tasks
-                            .filter((task) => task.status === "pending")
+                            .filter((task) => task.status === "Pending")
                             .map((task) => (
                               <TableRow key={task.id}>
                                 <TableCell>
@@ -416,7 +497,7 @@ export default function InternshipDetails() {
                       </Table>
                     </div>
                   </TabsContent>
-                  <TabsContent value="completed">
+                  <TabsContent value="Completed">
                     <div className="rounded-md border">
                       <Table>
                         <TableHeader>
@@ -431,7 +512,7 @@ export default function InternshipDetails() {
                         </TableHeader>
                         <TableBody>
                           {tasks
-                            .filter((task) => task.status === "completed")
+                            .filter((task) => task.status === "Completed")
                             .map((task) => (
                               <TableRow key={task.id}>
                                 <TableCell>
@@ -527,16 +608,7 @@ export default function InternshipDetails() {
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <div>
-                      <div className="font-medium">Location</div>
-                      <div className="text-sm text-muted-foreground">
-                        {internship.location}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <Calendar1 className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <div>
                       <div className="font-medium">Duration</div>
                       <div className="text-sm text-muted-foreground">
@@ -546,9 +618,9 @@ export default function InternshipDetails() {
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
-                    {internship.status === "ongoing" ? (
+                    {internship.status === "OnGoing" ? (
                       <RefreshCw className="h-4 w-4 text-blue-600 mt-0.5" />
-                    ) : internship.status === "completed" ? (
+                    ) : internship.status === "Completed" ? (
                       <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
                     ) : (
                       <XCircle className="h-4 w-4 text-red-600 mt-0.5" />
@@ -557,9 +629,9 @@ export default function InternshipDetails() {
                       <div className="font-medium">Status</div>
                       <div
                         className={`text-sm ${
-                          internship.status === "ongoing"
+                          internship.status === "OnGoing"
                             ? "text-blue-600"
-                            : internship.status === "completed"
+                            : internship.status === "Completed"
                             ? "text-green-600"
                             : "text-red-600"
                         }`}
@@ -573,7 +645,7 @@ export default function InternshipDetails() {
               </CardContent>
             </Card>
 
-            <Card>
+            {/* <Card>
               <CardHeader>
                 <CardTitle>Documents</CardTitle>
               </CardHeader>
@@ -593,7 +665,7 @@ export default function InternshipDetails() {
                   </Button>
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
           </div>
         </div>
       </div>

@@ -2,6 +2,16 @@ import mongoose from "mongoose";
 
 const taskSchema = new mongoose.Schema(
   {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    internshipDetails: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "InternshipDetails",
+      required: true,
+    },
     title: {
       type: String,
       required: true,
@@ -16,44 +26,48 @@ const taskSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    attachments: [
+      {
+        name: {
+          type: String,
+        },
+        url: {
+          type: String,
+        },
+      },
+    ],
     status: {
       type: String,
-      enum: ["Pending", "InProgress", "Completed"],
+      enum: ["Pending", "Completed"],
       default: "Pending",
-    },
-    assignedToStudent: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    assignedByCompany: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "CompanyDetails",
-      required: true,
     },
     comments: [
       {
-        description: {
+        text: {
           type: String,
           required: true,
           trim: true,
+        },
+        author: {
+          type: String,
+          required: true,
         },
         commentedBy: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "User",
           required: true,
         },
-        rating: {
-          type: Number,
+        date: {
+          type: Date,
+          default: Date.now,
+        },
+        role: {
+          type: String,
+          enum: ["Student", "Supervisor"],
           required: true,
         },
       },
     ],
-    priority: {
-      type: String,
-      enum: ["Low", "Medium", "High"],
-      default: "Low",
-    },
   },
   { timestamps: true }
 );

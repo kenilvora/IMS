@@ -1,5 +1,11 @@
 import express from "express";
-import { auth, isStudent, isAdmin, isSupervisor } from "../middlewares/auth.js";
+import {
+  auth,
+  isStudent,
+  isAdmin,
+  isSupervisor,
+  isAdminOrSupervisor,
+} from "../middlewares/auth.js";
 import {
   addInternship,
   addTask,
@@ -7,13 +13,15 @@ import {
   getInternship,
   getAllInternshipsOfMe,
   getTask,
-  getAllInternships,
   updateInternship,
   updateTask,
-  commentOnTask,
-  getInternshipByStatus,
-  getInternshipByStatusForFaculty,
-  getAllInternshipsByStatus,
+  getAllTasks,
+  getInternshipById,
+  getInternshipForAdminAndSupervisor,
+  supervisorActionOnInternship,
+  getAllInternshipsForAdmin,
+  getAllInternshipsForSupervisor,
+  getAllTaskUnderSupervisor,
 } from "../controllers/Internship.js";
 
 const router = express.Router();
@@ -22,54 +30,65 @@ const router = express.Router();
 router.post("/addInternship", auth, isStudent, addInternship);
 
 // Add Task Route
-router.post("/:id/addTask", auth, isStudent, addTask);
+router.post("/addTask/:id", auth, isStudent, addTask);
 
 // Get Task Route by Internship Id and Task Id
-router.get("/:internShipId/getTask/:taskId", auth, isStudent, getTask);
+router.get("/getTask/:internShipId/:taskId", auth, isStudent, getTask);
 
 // Get All Tasks Route by Internship Id
-router.get("/:id/getTasks", auth, isStudent, getTasks);
+router.get("/getTasks/:id", auth, isStudent, getTasks);
+
+// Get All Tasks Route for Student
+router.get("/getAllTasks", auth, isStudent, getAllTasks);
 
 // Get Internship Route by Internship Id
-router.get("/:id/getInternship", auth, isStudent, getInternship);
+router.get("/getInternship/:id", auth, isStudent, getInternship);
+
+// Get Internship Route by Internship Id for Admin and Supervisor
+router.get(
+  "/getInternshipForAdminAndSupervisor/:id",
+  auth,
+  isAdminOrSupervisor,
+  getInternshipForAdminAndSupervisor
+);
+
+// Get Internship Route by Internship Id for Updating Internship
+router.get("/getInternshipById/:id", auth, isStudent, getInternshipById);
 
 // Get All Internships Route of Student
 router.get("/getAllInternships", auth, isStudent, getAllInternshipsOfMe);
 
 // Get All Internships Route for Admin
-router.get("/getAll", auth, isAdmin, getAllInternships);
+router.get("/getAll", auth, isAdmin, getAllInternshipsForAdmin);
+
+// Get All Internships Route for Admin
+router.get(
+  "/getAllInternshipsForSupervisor",
+  auth,
+  isSupervisor,
+  getAllInternshipsForSupervisor
+);
 
 // Update Internship Route by Internship Id
-router.put("/:id/updateInternship", auth, isStudent, updateInternship);
+router.put("/updateInternship/:id", auth, isStudent, updateInternship);
 
 // Update Task Route by Internship Id and Task Id
-router.put("/:internShipId/updateTask/:taskId", auth, isStudent, updateTask);
+router.put("/updateTask/:internShipId/:taskId", auth, isStudent, updateTask);
 
-// Comment Route on Task by Internship Id and Task Id
-router.post(
-  "/:internShipId/commentOnTask/:taskId",
+// Change approval status of internship for Supervisor
+router.put(
+  "/updateApproval/:internshipId",
   auth,
   isSupervisor,
-  commentOnTask
+  supervisorActionOnInternship
 );
 
-// Get Internship Route by Status for Intern
-router.get("/getByStatus/:status", auth, isStudent, getInternshipByStatus);
-
-// Get InternShip by Status for Supervisor
+// fetch all tasks under a supervisor
 router.get(
-  "/getInternshipByStatus/:status",
+  "/getAllTasksUnderSupervisor",
   auth,
   isSupervisor,
-  getInternshipByStatusForFaculty
-);
-
-// Get All Internships by Status
-router.get(
-  "/getAllInternshipByStatus/:status",
-  auth,
-  isAdmin,
-  getAllInternshipsByStatus
+  getAllTaskUnderSupervisor
 );
 
 export default router;

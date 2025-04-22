@@ -82,7 +82,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
     return <Spinner />;
   }
 
-  return isAuthenticated ? children : <Navigate to="/login" />;
+  return isAuthenticated ? children : <Navigate to="/" />;
 }
 
 export default PrivateRoute;

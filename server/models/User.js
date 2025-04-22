@@ -31,17 +31,57 @@ const userSchema = new mongoose.Schema(
     enrollmentNumber: {
       type: String,
       trim: true,
-      required: true,
+      required: function () {
+        return this.role === "Student";
+      },
       unique: true,
+      sparse: true,
+    },
+    college: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "CollegeDetails",
+      required: true,
+    },
+    department: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+      required: true,
+    },
+    currentYear: {
+      type: String,
+      required: function () {
+        return this.role === "Student";
+      },
+      trim: true,
+    },
+    currentSemester: {
+      type: String,
+      required: function () {
+        return this.role === "Student";
+      },
+      trim: true,
     },
     image: {
       type: String,
       required: true,
     },
-    profile: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Profile",
-      required: true,
+    address: {
+      type: String,
+      required: function () {
+        return this.role === "Student";
+      },
+      trim: true,
+    },
+    bio: {
+      type: String,
+      trim: true,
+    },
+    skills: {
+      type: String,
+      trim: true,
+    },
+    interests: {
+      type: String,
       trim: true,
     },
     internshipDetails: [
@@ -59,7 +99,9 @@ const userSchema = new mongoose.Schema(
     faculty: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: function () {
+        return this.role === "Student";
+      },
     },
     role: {
       type: String,
@@ -77,12 +119,18 @@ const userSchema = new mongoose.Schema(
 
 userSchema.pre("save", function (next) {
   if (this.role !== "Student") {
-    this.enrollmentNumber = undefined;
-    this.internshipDetails = undefined;
-    this.faculty = undefined;
+    delete this.enrollmentNumber;
+    delete this.internshipDetails;
+    delete this.faculty;
+    delete this.currentYear;
+    delete this.currentSemester;
+    delete this.skills;
+    delete this.address;
+    delete this.interests;
+    delete this.bio;
   }
   if (this.role !== "Supervisor") {
-    this.internStudents = undefined;
+    delete this.internStudents;
   }
   next();
 });

@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
-  ArrowUpDown,
   CheckCircle,
   ChevronDown,
   Download,
@@ -44,67 +43,80 @@ import {
 } from "@/components/ui/table";
 import MainLayout from "@/components/main-layout";
 import { NavLink } from "react-router-dom";
+import Spinner from "@/components/Spinner";
+import { apiConnector } from "@/services/apiConnector";
+import toast from "react-hot-toast";
+import { MdPendingActions } from "react-icons/md";
+
+type Internship = {
+  id: string;
+  company: string;
+  position: string;
+  supervisor: string;
+  status: "OnGoing" | "Completed";
+  startDate: string;
+  endDate: string;
+  tasks: {
+    total: number;
+    completed: number;
+  };
+  approval: "Pending" | "Approved" | "Rejected";
+};
 
 export default function StudentInternships() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // Dummy data for internships
-  const internships = [
-    {
-      id: "int-001",
-      company: "TechCorp Inc.",
-      position: "Frontend Developer Intern",
-      supervisor: "Dr. Sarah Johnson",
-      status: "ongoing",
-      startDate: "2025-01-15",
-      endDate: "2025-06-15",
-      tasks: {
-        total: 8,
-        completed: 4,
-      },
-    },
-    {
-      id: "int-002",
-      company: "DataSys Solutions",
-      position: "Data Analyst Intern",
-      supervisor: "Dr. Michael Brown",
-      status: "completed",
-      startDate: "2024-06-01",
-      endDate: "2024-12-01",
-      tasks: {
-        total: 10,
-        completed: 10,
-      },
-    },
-    {
-      id: "int-003",
-      company: "InnovateTech",
-      position: "Software Engineering Intern",
-      supervisor: "Dr. Emily Chen",
-      status: "completed",
-      startDate: "2023-12-01",
-      endDate: "2024-05-01",
-      tasks: {
-        total: 12,
-        completed: 12,
-      },
-    },
-  ];
+  const [internships, setInternships] = useState<Internship[]>([]);
 
-  // Filter internships based on status and search query
-  const filteredInternships = internships.filter((internship) => {
-    const matchesStatus =
-      statusFilter === "all" || internship.status === statusFilter;
-    const matchesSearch =
-      internship.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      internship.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      internship.supervisor.toLowerCase().includes(searchQuery.toLowerCase());
+  const [filteredInternships, setFilteredInternships] = useState<Internship[]>(
+    []
+  );
+  const [loading, setLoading] = useState(true);
 
-    return matchesStatus && matchesSearch;
-  });
+  useEffect(() => {
+    const fetchInternships = async () => {
+      try {
+        const res = await apiConnector(
+          "GET",
+          `${import.meta.env.VITE_API_URL}/internship/getAllInternships`
+        );
 
-  return (
+        if (!res.data.success) {
+          throw new Error(res.data.message);
+        }
+
+        setInternships(res.data.data);
+        setFilteredInternships(res.data.data);
+      } catch (error) {
+        toast.error("Failed to fetch internships");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInternships();
+  }, []);
+
+  useEffect(() => {
+    const filtered = internships.filter((internship: Internship) => {
+      const matchesStatus =
+        statusFilter === "all" ||
+        internship.status.toLowerCase() === statusFilter;
+      const matchesSearch =
+        internship.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        internship.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        internship.supervisor.toLowerCase().includes(searchQuery.toLowerCase());
+
+      return matchesStatus && matchesSearch;
+    });
+
+    setFilteredInternships(filtered);
+  }, [statusFilter, searchQuery]);
+
+  return loading ? (
+    <Spinner />
+  ) : (
     <MainLayout role="student">
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -151,8 +163,8 @@ export default function StudentInternships() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="ongoing">Ongoing</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="OnGoing">Ongoing</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -180,16 +192,12 @@ export default function StudentInternships() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[100px]">ID</TableHead>
-                    <TableHead>
-                      <div className="flex items-center">
-                        Company
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                      </div>
-                    </TableHead>
+                    <TableHead>Company</TableHead>
                     <TableHead>Position</TableHead>
                     <TableHead>Supervisor</TableHead>
                     <TableHead>Duration</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Approval Status</TableHead>
                     <TableHead>Tasks</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -202,11 +210,9 @@ export default function StudentInternships() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredInternships.map((internship) => (
+                    filteredInternships.map((internship, i) => (
                       <TableRow key={internship.id}>
-                        <TableCell className="font-medium">
-                          {internship.id}
-                        </TableCell>
+                        <TableCell className="font-medium">{i + 1}</TableCell>
                         <TableCell>{internship.company}</TableCell>
                         <TableCell>{internship.position}</TableCell>
                         <TableCell>{internship.supervisor}</TableCell>
@@ -215,20 +221,33 @@ export default function StudentInternships() {
                           - {new Date(internship.endDate).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
-                          {internship.status === "ongoing" ? (
+                          {internship.status === "OnGoing" ? (
                             <div className="flex items-center text-sm text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full w-fit">
                               <RefreshCw className="mr-1 h-3 w-3" />
                               Ongoing
                             </div>
-                          ) : internship.status === "completed" ? (
+                          ) : (
                             <div className="flex items-center text-sm text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full w-fit">
                               <CheckCircle className="mr-1 h-3 w-3" />
                               Completed
                             </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {internship.approval === "Pending" ? (
+                            <div className="flex items-center text-sm text-yellow-600 bg-yellow-50 px-2.5 py-0.5 rounded-full w-fit">
+                              <MdPendingActions className="mr-1 h-3 w-3" />
+                              Pending
+                            </div>
+                          ) : internship.approval === "Approved" ? (
+                            <div className="flex items-center text-sm text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full w-fit">
+                              <CheckCircle className="mr-1 h-3 w-3" />
+                              Approved
+                            </div>
                           ) : (
                             <div className="flex items-center text-sm text-red-600 bg-red-50 px-2.5 py-0.5 rounded-full w-fit">
                               <XCircle className="mr-1 h-3 w-3" />
-                              Terminated
+                              Rejected
                             </div>
                           )}
                         </TableCell>
@@ -245,10 +264,10 @@ export default function StudentInternships() {
                                 <span className="sr-only">View</span>
                               </NavLink>
                             </Button>
-                            {internship.status === "ongoing" && (
+                            {internship.status === "OnGoing" && (
                               <Button variant="ghost" size="icon" asChild>
                                 <NavLink
-                                  to={`/student/internships/${internship.id}/edit`}
+                                  to={`/student/internships/edit/${internship.id}`}
                                 >
                                   <FileEdit className="h-4 w-4" />
                                   <span className="sr-only">Edit</span>

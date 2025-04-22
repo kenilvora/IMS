@@ -1,6 +1,5 @@
 import User from "../models/User.js";
 import { mailSender } from "../utils/mailSender.js";
-import dns from "dns";
 import crypto from "crypto";
 import { resetPasswordTemplate } from "../mail/resetPasswordTemplate.js";
 import bcrypt from "bcrypt";

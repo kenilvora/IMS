@@ -1,5 +1,4 @@
-import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   Briefcase,
@@ -7,85 +6,114 @@ import {
   CheckCircle,
   Clock,
   FileEdit,
-  MessageSquare,
-  Paperclip,
-  Send,
   User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import MainLayout from "@/components/main-layout";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
+import Spinner from "@/components/Spinner";
+import toast from "react-hot-toast";
+import { apiConnector } from "@/services/apiConnector";
+
+type Task = {
+  id: string;
+  title: string;
+  description: string;
+  internship: {
+    id: string;
+    company: string;
+    position: string;
+  };
+  supervisor: string;
+  dueDate: string;
+  status: "Pending" | "Completed";
+  attachments: Array<{
+    name: string;
+    url: string;
+  }>;
+  comments: Array<{
+    author: string;
+    role: "Supervisor" | "Student";
+    date: string;
+    text: string;
+  }>;
+};
 
 export default function TaskDetails() {
   const params = useParams();
+  const internshipId = params.internshipId as string;
+  const taskId = params.taskId as string;
   const navigate = useNavigate();
-  const taskId = params.id as string;
-  const [comment, setComment] = useState("");
+  // const [comment, setComment] = useState("");
 
-  // Dummy data for the task details
-  const task = {
-    id: "task-005",
-    title: "Weekly Progress Report",
-    description:
-      "Submit a weekly progress report detailing tasks completed, challenges faced, and plans for the next week. The report should include a summary of your work, any blockers or issues you encountered, and your goals for the upcoming week. Please use the provided template and submit it by the end of the week.",
-    internship: {
-      id: "int-001",
-      company: "TechCorp Inc.",
-      position: "Frontend Developer Intern",
-    },
-    supervisor: "Dr. Sarah Johnson",
-    dueDate: "2025-02-28",
-    status: "pending",
-    attachments: [
-      {
-        id: "att-001",
-        name: "Progress Report Template.docx",
-        size: "24 KB",
-        type: "document",
-      },
-    ],
-    comments: [
-      {
-        id: "com-001",
-        author: "Dr. Sarah Johnson",
-        role: "supervisor",
-        date: "2025-02-21",
-        text: "Please make sure to include screenshots of your work in the report. Also, focus on the challenges you faced and how you overcame them.",
-      },
-    ],
+  const [task, setTask] = useState<Task>({} as Task);
+  const [loading, setLoading] = useState(true);
+
+  const fetchTaskDetails = async () => {
+    setLoading(true);
+    try {
+      const res = await apiConnector(
+        "GET",
+        `${
+          import.meta.env.VITE_API_URL
+        }/internship/getTask/${internshipId}/${taskId}`
+      );
+
+      if (!res.data.success) {
+        throw new Error(res.data.message);
+      }
+
+      setTask(res.data.data);
+    } catch (error) {
+      toast.error("Failed to fetch task details");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSubmitComment = (e: React.FormEvent) => {
-    e.preventDefault();
-    // In a real app, this would submit the comment to the backend
-    setComment("");
+  useEffect(() => {
+    fetchTaskDetails();
+  }, []);
+
+  const handleMarkAsComplete = async () => {
+    setLoading(true);
+    try {
+      const res = await apiConnector(
+        "PUT",
+        `${
+          import.meta.env.VITE_API_URL
+        }/internship/updateTask/${internshipId}/${taskId}`,
+        {
+          status: "Completed",
+        }
+      );
+
+      if (!res.data.success) {
+        throw new Error(res.data.message);
+      }
+
+      toast.success("Task marked as complete");
+      fetchTaskDetails();
+    } catch (error) {
+      toast.error("Failed to fetch task details");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleMarkAsComplete = () => {
-    // In a real app, this would update the task status in the backend
-    navigate(`/student/internships/${task.internship.id}`);
-  };
-
-  return (
+  return loading ? (
+    <Spinner />
+  ) : (
     <MainLayout role="student">
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" asChild>
-              <NavLink to={`/student/internships/${task.internship.id}`}>
+              <button onClick={() => navigate(-1)}>
                 <ArrowLeft className="h-4 w-4" />
                 <span className="sr-only">Back</span>
-              </NavLink>
+              </button>
             </Button>
             <div>
               <h1 className="text-2xl font-bold tracking-tight">
@@ -97,10 +125,10 @@ export default function TaskDetails() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            {task.status === "pending" && (
+            {task.status === "Pending" && (
               <>
                 <Button variant="outline" asChild>
-                  <NavLink to={`/student/tasks/${taskId}/edit`}>
+                  <NavLink to={`/student/tasks/edit/${internshipId}/${taskId}`}>
                     <FileEdit className="mr-2 h-4 w-4" /> Edit Task
                   </NavLink>
                 </Button>
@@ -126,22 +154,19 @@ export default function TaskDetails() {
                       {task.description}
                     </p>
                   </div>
-                  {task.attachments.length > 0 && (
+                  {/* {task.attachments.length > 0 && (
                     <div>
                       <h3 className="font-medium">Attachments</h3>
                       <div className="mt-2 space-y-2">
-                        {task.attachments.map((attachment) => (
+                        {task.attachments.map((attachment, i) => (
                           <div
-                            key={attachment.id}
+                            key={i}
                             className="flex items-center gap-2 p-2 rounded-md border border-gray-200 bg-gray-50"
                           >
                             <Paperclip className="h-4 w-4 text-muted-foreground" />
                             <div className="flex-1">
                               <p className="text-sm font-medium">
                                 {attachment.name}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {attachment.size}
                               </p>
                             </div>
                             <Button variant="ghost" size="sm">
@@ -151,40 +176,35 @@ export default function TaskDetails() {
                         ))}
                       </div>
                     </div>
-                  )}
+                  )} */}
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            {/* <Card>
               <CardHeader>
                 <CardTitle>Comments</CardTitle>
                 <CardDescription>
-                  Discuss this task with your supervisor
+                  Discuss this task with your college faculty.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {task.comments.map((comment) => (
-                    <div key={comment.id} className="flex gap-4">
+                  {task.comments.map((comment, i) => (
+                    <div key={i} className="flex gap-4">
                       <Avatar>
                         <AvatarImage
                           src={`/placeholder.svg?height=40&width=40`}
                         />
                         <AvatarFallback>
-                          {comment.author
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
+                          {comment.author}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{comment.author}</span>
                           <span className="text-xs text-muted-foreground">
-                            {comment.role === "supervisor"
-                              ? "Supervisor"
-                              : "Student"}
+                            {comment.role}
                           </span>
                           <span className="text-xs text-muted-foreground">
                             {new Date(comment.date).toLocaleDateString()}
@@ -214,7 +234,7 @@ export default function TaskDetails() {
                   </div>
                 </form>
               </CardFooter>
-            </Card>
+            </Card> */}
           </div>
 
           <div className="space-y-6">
@@ -230,12 +250,12 @@ export default function TaskDetails() {
                       <div className="font-medium">Status</div>
                       <div
                         className={`text-sm ${
-                          task.status === "pending"
+                          task.status === "Pending"
                             ? "text-blue-600"
                             : "text-green-600"
                         }`}
                       >
-                        {task.status === "pending" ? "Pending" : "Completed"}
+                        {task.status === "Pending" ? "Pending" : "Completed"}
                       </div>
                     </div>
                   </div>
@@ -266,20 +286,11 @@ export default function TaskDetails() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <div>
-                      <div className="font-medium">Comments</div>
-                      <div className="text-sm text-muted-foreground">
-                        {task.comments.length}
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            {/* <Card>
               <CardHeader>
                 <CardTitle>Actions</CardTitle>
               </CardHeader>
@@ -295,7 +306,7 @@ export default function TaskDetails() {
                   </NavLink>
                 </Button>
               </CardContent>
-            </Card>
+            </Card> */}
           </div>
         </div>
       </div>

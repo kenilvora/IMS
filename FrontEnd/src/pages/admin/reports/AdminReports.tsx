@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -21,91 +21,95 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, FileText, Printer } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 import MainLayout from "@/components/main-layout";
+import { apiConnector } from "@/services/apiConnector";
+import toast from "react-hot-toast";
+import Spinner from "@/components/Spinner";
+
+type InternshipByDept = {
+  name: string;
+  value: number;
+};
+
+type InternshipByMonth = {
+  name: string;
+  count: number;
+};
+
+type StudentParticipation = {
+  name: string;
+  value: number;
+};
+
+type TaskCompletion = {
+  name: string;
+  value: number;
+};
 
 export default function AdminReports() {
-  const [reportType, setReportType] = useState("internships");
-  const [timeframe, setTimeframe] = useState("yearly");
+  const [internshipsByDept, setInternshipsByDept] = useState<
+    InternshipByDept[]
+  >([]);
 
-  // Dummy data for internships by college
-  const internshipsByCollege = [
-    { name: "Engineering", value: 38 },
-    { name: "Business", value: 25 },
-    { name: "Arts & Sciences", value: 12 },
-    { name: "Medicine", value: 10 },
-  ];
+  const [internshipsByMonth, setInternshipsByMonth] = useState<
+    InternshipByMonth[]
+  >([]);
 
-  // Dummy data for internships by month
-  const internshipsByMonth = [
-    { name: "Jan", count: 4 },
-    { name: "Feb", count: 3 },
-    { name: "Mar", count: 5 },
-    { name: "Apr", count: 7 },
-    { name: "May", count: 12 },
-    { name: "Jun", count: 15 },
-    { name: "Jul", count: 10 },
-    { name: "Aug", count: 8 },
-    { name: "Sep", count: 6 },
-    { name: "Oct", count: 4 },
-    { name: "Nov", count: 3 },
-    { name: "Dec", count: 8 },
-  ];
+  const [studentParticipation, setStudentParticipation] = useState<
+    StudentParticipation[]
+  >([]);
 
-  // Dummy data for student participation
-  const studentParticipation = [
-    { name: "With Internships", value: 85 },
-    { name: "Without Internships", value: 15 },
-  ];
+  const [taskCompletion, setTaskCompletion] = useState<TaskCompletion[]>([]);
 
-  // Dummy data for task completion
-  const taskCompletion = [
-    { name: "Completed", value: 78 },
-    { name: "Pending", value: 22 },
-  ];
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Fetch data from the API
+    const fetchData = async () => {
+      try {
+        const res = await apiConnector(
+          "GET",
+          `${import.meta.env.VITE_API_URL}/dashboard/admin/reports`
+        );
+
+        if (!res.data.success) {
+          throw new Error(res.data.message);
+        }
+
+        console.log(res.data);
+
+        setInternshipsByDept(res.data.internshipsByDept);
+        setInternshipsByMonth(res.data.internshipsByMonth);
+        setStudentParticipation(res.data.studentParticipation);
+        setTaskCompletion(res.data.taskCompletion);
+      } catch (error) {
+        toast.error("Failed to fetch data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   // Colors for pie charts
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
 
-  const handleGenerateReport = () => {
-    // In a real app, this would generate and download the report
-    console.log(`Generating ${reportType} report for ${timeframe} timeframe`);
-  };
-
-  const handlePrintReport = () => {
-    // In a real app, this would print the current report
-    window.print();
-  };
-
-  return (
+  return loading ? (
+    <Spinner />
+  ) : (
     <MainLayout role="admin">
       <div className="space-y-6 ">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
-            <p className="text-muted-foreground">
-              Generate and view system reports
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={handlePrintReport}>
-              <Printer className="mr-2 h-4 w-4" /> Print Report
-            </Button>
-            <Button onClick={handleGenerateReport}>
-              <Download className="mr-2 h-4 w-4" /> Export Report
-            </Button>
+            <p className="text-muted-foreground">View system reports</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
             <label className="text-sm font-medium mb-1 block">
               Report Type
@@ -136,29 +140,29 @@ export default function AdminReports() {
               </SelectContent>
             </Select>
           </div>
-        </div>
+        </div> */}
 
         <Tabs defaultValue="overview">
           <TabsList className="mb-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="details">Detailed Reports</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            {/* <TabsTrigger value="details">Detailed Reports</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger> */}
           </TabsList>
 
           <TabsContent value="overview">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Internships by College</CardTitle>
+                  <CardTitle>Internships by Departments</CardTitle>
                   <CardDescription>
-                    Distribution of internships across colleges
+                    Distribution of internships across departments
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={internshipsByCollege}
+                        data={internshipsByDept}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
@@ -169,7 +173,7 @@ export default function AdminReports() {
                           `${name}: ${(percent * 100).toFixed(0)}%`
                         }
                       >
-                        {internshipsByCollege.map((_entry, index) => (
+                        {internshipsByDept.map((_entry, index) => (
                           <Cell
                             key={`cell-${index}`}
                             fill={COLORS[index % COLORS.length]}
